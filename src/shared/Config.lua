@@ -1,6 +1,6 @@
 local Config = {}
 
-Config.BuildId = "HF-RC-20260929-02"
+Config.BuildId = "HF-RC-20260929-03"
 
 Config.RunDuration = 10 * 60
 Config.BossWindow = 90
