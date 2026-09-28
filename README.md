@@ -91,6 +91,22 @@ Project file: `default.project.json`
 - `src/server/Game.server.lua` - combat, hunger, spawning, bosses, runs and escape/descend logic
 - `src/client/HUD.client.lua` - HUD and mobile-friendly escape/descend voting
 
+## Current polish
+
+The playable build now also includes:
+
+- first-run objective onboarding
+- hit markers and floating damage numbers
+- local damage flashes
+- lightweight hit / reward audio cues
+- THE BUTCHER boss health bar
+- distinct procedural silhouettes for each demon family
+- Brute knockback
+- Watcher ranged bolts
+- Furnace Hound charges
+- Bone Crawler hunger attacks
+- graft and cooking screen feedback
+
 ## Next polish targets
 
-The gameplay spine is now in place. Remaining work is mainly presentation and tuning: animations, audio, more distinct demon models, combat feedback, onboarding, PvP/Blood Night as an optional mode, analytics and balance after real Studio playtests.
+The core PvE game is now coherent enough for full Studio playtesting. The next work should be driven by playtest findings: combat animation, bespoke sound/music, better demon art, map landmarks, balance, analytics, and optional Blood Night PvP.
