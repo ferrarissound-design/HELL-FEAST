@@ -306,14 +306,21 @@ local function createLineTelegraph(payload)
 	Debris:AddItem(strip, duration + 0.08)
 end
 
+local healthChangedConnection
+
 local function bindHumanoid(character)
+	if healthChangedConnection then
+		healthChangedConnection:Disconnect()
+		healthChangedConnection = nil
+	end
+
 	local humanoid = character:WaitForChild("Humanoid", 8)
 	if not humanoid then
 		return
 	end
 
 	local lastHealth = humanoid.Health
-	humanoid.HealthChanged:Connect(function(newHealth)
+	healthChangedConnection = humanoid.HealthChanged:Connect(function(newHealth)
 		if newHealth < lastHealth then
 			local lost = lastHealth - newHealth
 			flashDamage(math.clamp(0.20 + lost / math.max(1, humanoid.MaxHealth), 0.20, 0.48))
