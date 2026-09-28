@@ -110,6 +110,7 @@ bossFillCorner.Parent = bossFill
 
 
 local fullPulse
+local phaseBannerVersion = 0
 
 local phaseBanner = Instance.new("TextLabel")
 phaseBanner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -125,6 +126,9 @@ phaseBanner.TextWrapped = true
 phaseBanner.Parent = gui
 
 local function showBossPhase(phase)
+	phaseBannerVersion += 1
+	local version = phaseBannerVersion
+
 	if phase == 2 then
 		phaseBanner.Text = "THE BUTCHER\nPHASE II"
 		phaseBanner.TextColor3 = Color3.fromRGB(255, 165, 105)
@@ -147,6 +151,9 @@ local function showBossPhase(phase)
 	fullPulse(phase == 3 and Color3.fromRGB(150, 20, 25) or Color3.fromRGB(130, 50, 25))
 
 	task.delay(1.55, function()
+		if version ~= phaseBannerVersion then
+			return
+		end
 		TweenService:Create(phaseBanner, TweenInfo.new(0.42), {
 			TextTransparency = 1,
 		}):Play()
