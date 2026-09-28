@@ -136,6 +136,24 @@ local function apply()
 		end
 	end
 
+	local settingsGui = playerGui:FindFirstChild("HellFeastSettings")
+	if settingsGui then
+		local settingsButton = settingsGui:FindFirstChild("SettingsButton")
+		local buttonScale = ensureScale(settingsButton, "ResponsiveScale")
+		if buttonScale then
+			buttonScale.Scale = tiny and 0.82 or compact and 0.92 or 1
+		end
+
+		local settingsPanel = settingsGui:FindFirstChild("SettingsPanel")
+		local panelScale = ensureScale(settingsPanel, "ResponsiveScale")
+		if panelScale then
+			panelScale.Scale = tiny and 0.82 or compact and 0.92 or 1
+		end
+		if settingsPanel then
+			settingsPanel.Position = tiny and UDim2.new(1, -12, 0, 64) or UDim2.new(1, -18, 0, 68)
+		end
+	end
+
 	player:SetAttribute("CompactUI", compact)
 	player:SetAttribute("TinyUI", tiny)
 	player:SetAttribute("ViewportWidth", math.floor(viewport.X))
