@@ -140,6 +140,11 @@ Config.Safety = {
 }
 
 
+Config.Persistence = {
+	AutoSaveSeconds = 120,
+}
+
+
 Config.HellBook = {
 	DemonOrder = {"Imp", "Brute", "Watcher", "FurnaceHound", "Crawler", "Butcher"},
 	PartOrder = {"ImpLegs", "BruteArm", "WatcherEye", "DemonHorn", "DemonWings", "ClawArm", "ButcherArm"},
