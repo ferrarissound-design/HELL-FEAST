@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
@@ -192,6 +193,32 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 		demonDeath(payload)
 	elseif kind == "SOUL_CAPTURE" then
 		soulCapture(payload)
+	end
+end)
+
+
+RunService.RenderStepped:Connect(function()
+	local world = Workspace:FindFirstChild("HellFeastWorld")
+	local souls = world and world:FindFirstChild("LostSouls")
+	if not souls then
+		return
+	end
+
+	local now = Workspace:GetServerTimeNow()
+	for index, soul in ipairs(souls:GetChildren()) do
+		local root = soul.PrimaryPart
+		local light = root and root:FindFirstChild("SoulLight")
+		if light and light:IsA("PointLight") then
+			local wave = math.sin(now * 2.4 + index * 0.85)
+			light.Brightness = 1.35 + wave * 0.35
+			light.Range = 13 + wave * 1.8
+		end
+
+		local highlight = soul:FindFirstChild("SoulHighlight")
+		if highlight and highlight:IsA("Highlight") then
+			local wave = math.sin(now * 1.8 + index * 0.7)
+			highlight.FillTransparency = 0.60 + wave * 0.08
+		end
 	end
 end)
 
