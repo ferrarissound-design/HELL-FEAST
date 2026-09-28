@@ -1200,7 +1200,7 @@ local function createDemon(demonType, circle, forcedPosition)
 				end
 			end
 
-			if data.IsBoss then
+			if data.IsBoss and targetPlayer then
 				local phase = model:GetAttribute("BossPhase") or 1
 				local slamCooldown = 7
 				local slamRadius = 28
