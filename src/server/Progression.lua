@@ -166,6 +166,7 @@ function Progression.Save(player)
 		if ok then
 			player:SetAttribute("SaveFailureCount", 0)
 			player:SetAttribute("LastSaveFailed", false)
+			player:SetAttribute("SaveWarningShown", false)
 			return true
 		end
 
