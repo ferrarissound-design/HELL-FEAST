@@ -18,7 +18,7 @@ local nav = Instance.new("Frame")
 nav.Name = "NavigationPanel"
 nav.AnchorPoint = Vector2.new(0.5, 0)
 nav.Position = UDim2.new(0.5, 0, 0, 12)
-nav.Size = UDim2.fromOffset(260, 72)
+nav.Size = UDim2.fromOffset(300, 98)
 nav.BackgroundColor3 = Color3.fromRGB(24, 16, 20)
 nav.BackgroundTransparency = 0.16
 nav.BorderSizePixel = 0
@@ -36,7 +36,7 @@ navStroke.Parent = nav
 
 local arrow = Instance.new("TextLabel")
 arrow.AnchorPoint = Vector2.new(0.5, 0.5)
-arrow.Position = UDim2.fromOffset(36, 36)
+arrow.Position = UDim2.fromOffset(38, 38)
 arrow.Size = UDim2.fromOffset(46, 46)
 arrow.BackgroundTransparency = 1
 arrow.Text = "▲"
@@ -46,8 +46,8 @@ arrow.TextSize = 30
 arrow.Parent = nav
 
 local targetLabel = Instance.new("TextLabel")
-targetLabel.Position = UDim2.fromOffset(66, 8)
-targetLabel.Size = UDim2.fromOffset(182, 28)
+targetLabel.Position = UDim2.fromOffset(68, 8)
+targetLabel.Size = UDim2.fromOffset(220, 28)
 targetLabel.BackgroundTransparency = 1
 targetLabel.TextColor3 = Color3.fromRGB(245, 225, 214)
 targetLabel.Font = Enum.Font.GothamBold
@@ -56,8 +56,8 @@ targetLabel.TextXAlignment = Enum.TextXAlignment.Left
 targetLabel.Parent = nav
 
 local regionLabel = Instance.new("TextLabel")
-regionLabel.Position = UDim2.fromOffset(66, 36)
-regionLabel.Size = UDim2.fromOffset(182, 25)
+regionLabel.Position = UDim2.fromOffset(68, 34)
+regionLabel.Size = UDim2.fromOffset(220, 24)
 regionLabel.BackgroundTransparency = 1
 regionLabel.TextColor3 = Color3.fromRGB(188, 157, 193)
 regionLabel.Font = Enum.Font.Gotham
@@ -65,10 +65,23 @@ regionLabel.TextSize = 13
 regionLabel.TextXAlignment = Enum.TextXAlignment.Left
 regionLabel.Parent = nav
 
+local objectiveLabel = Instance.new("TextLabel")
+objectiveLabel.Name = "ObjectiveLabel"
+objectiveLabel.Position = UDim2.fromOffset(16, 64)
+objectiveLabel.Size = UDim2.new(1, -32, 0, 24)
+objectiveLabel.BackgroundTransparency = 1
+objectiveLabel.Text = "OBJECTIVE • Survive"
+objectiveLabel.TextColor3 = Color3.fromRGB(226, 196, 161)
+objectiveLabel.Font = Enum.Font.GothamBold
+objectiveLabel.TextSize = 13
+objectiveLabel.TextWrapped = true
+objectiveLabel.TextXAlignment = Enum.TextXAlignment.Left
+objectiveLabel.Parent = nav
+
 local hungerAlert = Instance.new("TextLabel")
 hungerAlert.Name = "HungerAlert"
 hungerAlert.AnchorPoint = Vector2.new(0.5, 0)
-hungerAlert.Position = UDim2.new(0.5, 0, 0, 90)
+hungerAlert.Position = UDim2.new(0.5, 0, 0, 118)
 hungerAlert.Size = UDim2.fromOffset(290, 44)
 hungerAlert.BackgroundColor3 = Color3.fromRGB(100, 45, 30)
 hungerAlert.BackgroundTransparency = 1
@@ -173,6 +186,56 @@ local function setAlert(level)
 	}):Play()
 end
 
+local function equippedGraftCount()
+	local count = 0
+	for _, part in pairs(Config.Parts) do
+		local equipped = player:GetAttribute("Part_" .. part.Slot)
+		if equipped and equipped ~= "" then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function objectiveText(runState, bossAlive, hungerRatio)
+	if Workspace:GetAttribute("DecisionOpen") == true or runState == "DECISION" then
+		return "OBJECTIVE • Choose ESCAPE or DESCEND"
+	end
+	if bossAlive or runState == "BOSS" then
+		return "OBJECTIVE • Defeat THE BUTCHER"
+	end
+	if runState == "DESCENDING" then
+		return "OBJECTIVE • Prepare for the next Circle"
+	end
+	if runState == "INTERMISSION" then
+		return "OBJECTIVE • Prepare at HELL KITCHEN"
+	end
+	if runState == "FAILED" or runState == "ESCAPED" then
+		return "OBJECTIVE • Run complete"
+	end
+
+	local souls = player:GetAttribute("Souls") or 0
+	if hungerRatio <= Config.Navigation.CriticalHungerThreshold / 100 then
+		if souls > 0 then
+			return "OBJECTIVE • Return to HELL KITCHEN and cook NOW"
+		end
+		return "OBJECTIVE • Capture a Lost Soul, then cook"
+	end
+	if hungerRatio <= Config.Navigation.LowHungerThreshold / 100 then
+		if souls > 0 then
+			return "OBJECTIVE • Return to HELL KITCHEN and cook"
+		end
+		return "OBJECTIVE • Find a Lost Soul before hunger drops"
+	end
+	if equippedGraftCount() == 0 then
+		return "OBJECTIVE • Hunt a demon and graft its part"
+	end
+	if souls == 0 then
+		return "OBJECTIVE • Capture a Lost Soul for your next meal"
+	end
+	return "OBJECTIVE • Grow stronger and survive until THE BUTCHER"
+end
+
 RunService.RenderStepped:Connect(function()
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -181,10 +244,12 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 
+	local runState = Workspace:GetAttribute("RunState") or ""
 	local bossAlive = Workspace:GetAttribute("BossAlive") == true
 	local hunger = player:GetAttribute("Hunger") or Config.Hunger.Max
 	local maxHunger = player:GetAttribute("MaxHunger") or Config.Hunger.Max
 	local hungerRatio = hunger / math.max(1, maxHunger)
+	objectiveLabel.Text = objectiveText(runState, bossAlive, hungerRatio)
 
 	local targetPosition
 	local targetName
