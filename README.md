@@ -133,6 +133,7 @@ The playable build now also includes:
 - lightweight hit / reward audio cues
 - THE BUTCHER boss health bar
 - distinct procedural silhouettes for each demon family
+- lightweight raycast steering so demons avoid major world obstacles without full PathfindingService cost
 - telegraphed Brute attacks
 - telegraphed Watcher strike zones
 - telegraphed Furnace Hound charge lanes

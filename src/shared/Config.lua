@@ -31,6 +31,13 @@ Config.Movement = {
 	DashHungerCost = 2.5,
 }
 
+
+Config.DemonMovement = {
+	ObstacleProbeDistance = 7,
+	AvoidAngleDegrees = 52,
+	AvoidProbeDistance = 6,
+}
+
 Config.Butcher = {
 	PhaseTwoHealthRatio = 0.67,
 	PhaseThreeHealthRatio = 0.34,

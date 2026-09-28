@@ -55,6 +55,10 @@ check(type(Config.Combat.AssistAngleDegrees) == "number" and Config.Combat.Assis
 check(type(Config.Combat.CloseAssistRange) == "number" and Config.Combat.CloseAssistRange > 0 and Config.Combat.CloseAssistRange <= Config.Combat.AttackRange, "melee close-assist range is valid")
 check(type(Config.Combat.AttackLungeSpeed) == "number" and Config.Combat.AttackLungeSpeed >= 0, "melee lunge speed is valid")
 
+check(type(Config.DemonMovement.ObstacleProbeDistance) == "number" and Config.DemonMovement.ObstacleProbeDistance > 0, "demon obstacle probe is valid")
+check(type(Config.DemonMovement.AvoidAngleDegrees) == "number" and Config.DemonMovement.AvoidAngleDegrees > 20 and Config.DemonMovement.AvoidAngleDegrees < 90, "demon avoid angle is valid")
+check(type(Config.DemonMovement.AvoidProbeDistance) == "number" and Config.DemonMovement.AvoidProbeDistance > 0, "demon avoid probe is valid")
+
 check(type(Config.Persistence.AutoSaveSeconds) == "number" and Config.Persistence.AutoSaveSeconds >= 60, "autosave interval is valid")
 
 check(type(Config.Safety.SanctuaryRadius) == "number" and Config.Safety.SanctuaryRadius > 20, "sanctuary radius is valid")
