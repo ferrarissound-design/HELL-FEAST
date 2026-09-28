@@ -191,6 +191,21 @@ function World.Build()
 	Lighting.Ambient = Color3.fromRGB(66, 32, 38)
 	Lighting.OutdoorAmbient = Color3.fromRGB(30, 18, 25)
 
+	local colorCorrection = Lighting:FindFirstChild("HellFeastColor") or Instance.new("ColorCorrectionEffect")
+	colorCorrection.Name = "HellFeastColor"
+	colorCorrection.Brightness = -0.03
+	colorCorrection.Contrast = 0.08
+	colorCorrection.Saturation = -0.12
+	colorCorrection.TintColor = Color3.fromRGB(255, 225, 220)
+	colorCorrection.Parent = Lighting
+
+	local bloom = Lighting:FindFirstChild("HellFeastBloom") or Instance.new("BloomEffect")
+	bloom.Name = "HellFeastBloom"
+	bloom.Intensity = 0.55
+	bloom.Size = 28
+	bloom.Threshold = 1.1
+	bloom.Parent = Lighting
+
 	local atmosphere = Lighting:FindFirstChild("HellFeastAtmosphere") or Instance.new("Atmosphere")
 	atmosphere.Name = "HellFeastAtmosphere"
 	atmosphere.Density = 0.34
@@ -261,6 +276,22 @@ function World.Build()
 	kitchenLight.Parent = kitchenBeacon
 	billboard(kitchenBeacon, "HELL KITCHEN", Vector3.new(0, 9, 0), UDim2.fromOffset(230, 46))
 
+	local beaconFire = Instance.new("Fire")
+	beaconFire.Name = "HellKitchenFlame"
+	beaconFire.Color = Color3.fromRGB(255, 110, 45)
+	beaconFire.SecondaryColor = Color3.fromRGB(125, 35, 55)
+	beaconFire.Heat = 5
+	beaconFire.Size = 7
+	beaconFire.Parent = kitchenBeacon
+
+	local beaconSmoke = Instance.new("Smoke")
+	beaconSmoke.Name = "HellKitchenSmoke"
+	beaconSmoke.Color = Color3.fromRGB(70, 52, 58)
+	beaconSmoke.Opacity = 0.28
+	beaconSmoke.RiseVelocity = 3.5
+	beaconSmoke.Size = 8
+	beaconSmoke.Parent = kitchenBeacon
+
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "HellSpawn"
 	spawn.Anchored = true
@@ -286,6 +317,19 @@ function World.Build()
 		station:SetAttribute("Recipe", recipe.key)
 		makePrompt(station, "Cook", recipe.label, 0.45)
 		billboard(station, recipe.label, Vector3.new(0, 4.5, 0), UDim2.fromOffset(150, 36))
+
+		local heat = Instance.new("PointLight")
+		heat.Color = Color3.fromRGB(255, 112, 62)
+		heat.Range = 14
+		heat.Brightness = 1.3
+		heat.Parent = station
+
+		local smoke = Instance.new("Smoke")
+		smoke.Color = Color3.fromRGB(85, 67, 62)
+		smoke.Opacity = 0.12
+		smoke.RiseVelocity = 2
+		smoke.Size = 3
+		smoke.Parent = station
 	end
 
 	local upgradePads = Instance.new("Folder")
@@ -330,16 +374,28 @@ function World.ApplyCircleStyle(circle)
 			Ambient = Color3.fromRGB(66, 32, 38),
 			Atmosphere = Color3.fromRGB(145, 85, 85),
 			FogEnd = 390,
+			Tint = Color3.fromRGB(255, 225, 220),
+			Contrast = 0.08,
+			Saturation = -0.12,
+			Bloom = 0.55,
 		},
 		[2] = {
 			Ambient = Color3.fromRGB(72, 28, 18),
 			Atmosphere = Color3.fromRGB(175, 85, 55),
 			FogEnd = 340,
+			Tint = Color3.fromRGB(255, 205, 170),
+			Contrast = 0.12,
+			Saturation = -0.04,
+			Bloom = 0.75,
 		},
 		[3] = {
 			Ambient = Color3.fromRGB(38, 25, 72),
 			Atmosphere = Color3.fromRGB(92, 68, 160),
 			FogEnd = 300,
+			Tint = Color3.fromRGB(220, 205, 255),
+			Contrast = 0.16,
+			Saturation = 0.02,
+			Bloom = 0.95,
 		},
 	}
 
@@ -351,6 +407,19 @@ function World.ApplyCircleStyle(circle)
 	if atmosphere then
 		atmosphere.Color = style.Atmosphere
 		atmosphere.Density = 0.32 + (circle - 1) * 0.05
+		atmosphere.Haze = 2 + (circle - 1) * 0.8
+	end
+
+	local colorCorrection = Lighting:FindFirstChild("HellFeastColor")
+	if colorCorrection then
+		colorCorrection.TintColor = style.Tint
+		colorCorrection.Contrast = style.Contrast
+		colorCorrection.Saturation = style.Saturation
+	end
+
+	local bloom = Lighting:FindFirstChild("HellFeastBloom")
+	if bloom then
+		bloom.Intensity = style.Bloom
 	end
 end
 
