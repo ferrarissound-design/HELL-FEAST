@@ -2,7 +2,7 @@
 
 Release candidate build:
 
-`HF-RC-20260929-03`
+`HF-RC-20260929-04`
 
 This checklist is intentionally short. If a step fails, fix that failure before publishing.
 
@@ -21,7 +21,7 @@ Expected after the release-gate PR is merged:
 - `git status` is clean
 - Roblox Studio connects through Rojo
 - Play mode shows **DEV PANEL**
-- DEV PANEL shows build **HF-RC-20260929-03**
+- DEV PANEL shows build **HF-RC-20260929-04**
 - DEV PANEL shows **QA PASS** with zero failed checks
 - DEV PANEL runtime line shows plausible FPS / demon / Soul counts and updates while playing
 
@@ -107,6 +107,7 @@ After the debug smoke tests, restart Play mode and do one normal Circle without 
 Judge only these questions:
 
 - Is the first minute understandable?
+- Does the OBJECTIVE line always suggest a sensible next action?
 - Does combat feel responsive?
 - Do you naturally return to HELL KITCHEN before starving?
 - Does the middle of the run stay active without becoming noisy?
