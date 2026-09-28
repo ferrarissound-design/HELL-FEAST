@@ -140,6 +140,14 @@ The playable build now also includes:
 - Bone Crawler hunger attacks
 - graft and cooking screen feedback
 
+## Studio playtest tools
+
+When running inside Roblox Studio, a **DEV PANEL** is available for rapid QA. It can restore health/hunger, grant Souls, equip grafts, spawn each demon, jump directly into THE BUTCHER, force boss phases, switch circles, teleport between key locations, and clear spawned entities.
+
+The server independently rejects all debug commands outside Studio. A Studio-only startup diagnostic also checks configuration references, HELL BOOK entries, world folders, recipes and remotes.
+
+See `PLAYTEST.md` for the fast test sequence.
+
 ## Next polish targets
 
-The core PvE game is now coherent enough for full Studio playtesting. The next work should be driven by playtest findings: combat animation, bespoke sound/music, better demon art, map landmarks, balance, analytics, and optional Blood Night PvP.
+The core PvE game is now coherent enough for full Studio playtesting. The next changes should be driven by observed playtest problems rather than feature count: balance, pacing, animation, bespoke audio/music, art quality, analytics, and optional Blood Night PvP.

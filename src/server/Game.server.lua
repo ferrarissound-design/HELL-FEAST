@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
@@ -36,6 +37,10 @@ feedbackRemote.Parent = remotes
 local dashRemote = remotes:FindFirstChild("Dash") or Instance.new("RemoteEvent")
 dashRemote.Name = "Dash"
 dashRemote.Parent = remotes
+
+local debugRemote = remotes:FindFirstChild("DebugCommand") or Instance.new("RemoteEvent")
+debugRemote.Name = "DebugCommand"
+debugRemote.Parent = remotes
 
 local runActive = false
 local decisionOpen = false
@@ -1304,6 +1309,98 @@ local function clearRunEntities(includeDrops)
 		clearFolder(dropsFolder)
 	end
 end
+
+
+local function findBoss()
+	for _, demon in ipairs(demonsFolder:GetChildren()) do
+		if demon:GetAttribute("IsBoss") == true then
+			return demon
+		end
+	end
+	return nil
+end
+
+debugRemote.OnServerEvent:Connect(function(player, action, payload)
+	if not RunService:IsStudio() then
+		return
+	end
+
+	if action == "HEAL_FEED" then
+		player:SetAttribute("Hunger", maxHungerFor(player))
+		local _, humanoid = getCharacterHumanoid(player)
+		if humanoid then
+			humanoid.Health = humanoid.MaxHealth
+		end
+		notify(player, "DEBUG • health and hunger restored.")
+	elseif action == "SOULS" then
+		player:SetAttribute("Souls", (player:GetAttribute("Souls") or 0) + 3)
+		notify(player, "DEBUG • +3 Lost Souls.")
+	elseif action == "GRAFT" and type(payload) == "string" and Config.Parts[payload] then
+		equipPart(player, payload)
+		notify(player, "DEBUG • grafted " .. Config.Parts[payload].DisplayName)
+	elseif action == "SPAWN" and type(payload) == "string" and Config.Demons[payload] and not Config.Demons[payload].IsBoss then
+		if not runActive then
+			notify(player, "DEBUG • wait for HELL RUN to start.")
+			return
+		end
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local spawnPosition = root and (root.Position + root.CFrame.LookVector * 18) or randomArenaPosition(demonRegions[payload])
+		createDemon(payload, currentCircle, Vector3.new(spawnPosition.X, 3, spawnPosition.Z))
+		notify(player, "DEBUG • spawned " .. Config.Demons[payload].DisplayName)
+	elseif action == "BOSS_NOW" then
+		if not runActive then
+			notify(player, "DEBUG • wait for HELL RUN to start.")
+			return
+		end
+		for _, demon in ipairs(demonsFolder:GetChildren()) do
+			if demon:GetAttribute("IsBoss") == true then
+				demon:Destroy()
+			end
+		end
+		circleBossDefeated = false
+		Workspace:SetAttribute("RunState", "BOSS")
+		Workspace:SetAttribute("BossAlive", true)
+		Workspace:SetAttribute("RunTimeLeft", Config.BossWindow)
+		feedbackAll("BOSS_SPAWN", {Circle = currentCircle})
+		createDemon("Butcher", currentCircle, Config.Navigation.BossPosition)
+		notifyAll("DEBUG • THE BUTCHER spawned immediately.")
+	elseif action == "PHASE_2" then
+		local boss = findBoss()
+		if boss then
+			local maxHealth = boss:GetAttribute("MaxHealth") or 1
+			boss:SetAttribute("Health", math.max(1, math.floor(maxHealth * (Config.Butcher.PhaseTwoHealthRatio - 0.02))))
+			notify(player, "DEBUG • forced Butcher Phase II.")
+		else
+			notify(player, "DEBUG • spawn THE BUTCHER first.")
+		end
+	elseif action == "PHASE_3" then
+		local boss = findBoss()
+		if boss then
+			local maxHealth = boss:GetAttribute("MaxHealth") or 1
+			boss:SetAttribute("Health", math.max(1, math.floor(maxHealth * (Config.Butcher.PhaseThreeHealthRatio - 0.02))))
+			notify(player, "DEBUG • forced Butcher Phase III.")
+		else
+			notify(player, "DEBUG • spawn THE BUTCHER first.")
+		end
+	elseif action == "CIRCLE" and type(payload) == "number" then
+		currentCircle = math.clamp(math.floor(payload), 1, Config.MaxCircle)
+		Workspace:SetAttribute("Circle", currentCircle)
+		World.ApplyCircleStyle(currentCircle)
+		notifyAll(string.format("DEBUG • switched to Circle %d.", currentCircle))
+	elseif action == "TP_KITCHEN" or action == "TP_BOSS" then
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root then
+			local target = action == "TP_BOSS" and Config.Navigation.BossPosition or Config.Navigation.KitchenPosition
+			root.CFrame = CFrame.new(target + Vector3.new(0, 3, 0))
+		end
+	elseif action == "CLEAR" then
+		clearRunEntities(true)
+		Workspace:SetAttribute("BossAlive", false)
+		notify(player, "DEBUG • entities cleared.")
+	end
+end)
 
 local function awardRun(player, multiplier, reason)
 	local unbanked = player:GetAttribute("RunDNA") or 0
