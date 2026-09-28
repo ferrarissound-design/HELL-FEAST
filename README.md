@@ -29,6 +29,11 @@ The experience uses abstract Lost Souls and stylized transformations rather than
   - award more unbanked Demon DNA
 - Death during a run removes current grafts and costs part of your unbanked DNA
 - Escaping banks the haul
+- clearing THE BUTCHER opens a live ESCAPE / DESCEND vote
+- the vote resolves early once all eligible players choose
+- missing votes safely default toward ESCAPE
+- late joiners follow the already-running group decision instead of changing its electorate
+- DESCEND preserves grafts, restores part of health / hunger, then returns the group to HELL KITCHEN before the next Circle
 - Clearing the deepest circle gives a bonus
 
 ## Demons
