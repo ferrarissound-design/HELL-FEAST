@@ -2,7 +2,7 @@
 
 Use the **DEV PANEL** in Roblox Studio to test systems without waiting through a full run. The panel and debug commands are disabled outside Studio.
 
-Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-03** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
+Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-04** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
 
 Also watch the DEV PANEL runtime line during tests. It reports FPS, active demons, active Lost Souls, Circle, run state, and the effective FX mode.
 
@@ -23,6 +23,12 @@ Also watch the DEV PANEL runtime line during tests. It reports FPS, active demon
 7. Set Hunger low naturally or continue playing long enough to verify hunger warnings and starvation behavior.
 8. Take damage and confirm the custom HEALTH bar updates immediately.
 9. Raise VITALITY and confirm the HEALTH maximum updates.
+10. Watch OBJECTIVE while changing state:
+    - no graft → hunt a demon / graft
+    - low hunger with Souls → return and cook
+    - low hunger without Souls → capture a Lost Soul
+    - boss active → defeat THE BUTCHER
+    - decision open → choose ESCAPE or DESCEND
 
 ## Boss test in under two minutes
 

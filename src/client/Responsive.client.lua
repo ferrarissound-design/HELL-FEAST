@@ -69,7 +69,7 @@ local function apply()
 			alertScale.Scale = tiny and 0.82 or compact and 0.92 or 1
 		end
 		if alert then
-			alert.Position = tiny and UDim2.new(0.5, 0, 0, 256) or UDim2.new(0.5, 0, 0, 90)
+			alert.Position = tiny and UDim2.new(0.5, 0, 0, 300) or UDim2.new(0.5, 0, 0, 118)
 		end
 
 		local zone = navigation:FindFirstChild("ZoneBanner")
