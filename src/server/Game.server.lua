@@ -1347,6 +1347,7 @@ local function setupPlayer(player)
 					resetBody(player)
 					player:SetAttribute("Hunger", math.min(maxHungerFor(player), 60))
 					player:SetAttribute("Souls", 0)
+					feedback(player, "PLAYER_DEATH", {LostDNA = lost})
 					notify(player, string.format("Death stripped your grafts. %d unbanked DNA lost.", lost))
 				end
 			end)
