@@ -209,6 +209,12 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 		flashDamage(0.36)
 	elseif kind == "HOUND_CHARGE" then
 		flashDamage(0.44)
+	elseif kind == "ENVIRONMENT_HIT" then
+		damageFlash.BackgroundColor3 = Color3.fromRGB(235, 85, 25)
+		flashDamage(0.34)
+		task.delay(0.25, function()
+			damageFlash.BackgroundColor3 = Color3.fromRGB(170, 15, 25)
+		end)
 	elseif kind == "ENEMY_HIT" then
 		flashDamage(0.26)
 	elseif kind == "BOSS_SPAWN" then
