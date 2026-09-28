@@ -62,7 +62,7 @@ local function cameraKick()
 end
 
 local function swing(tool)
-	if tool.Parent ~= player.Character then
+	if tool.Parent ~= player.Character or player:GetAttribute("InSanctuary") == true then
 		return
 	end
 
