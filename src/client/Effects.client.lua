@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
+local SoundService = game:GetService("SoundService")
 
 local player = Players.LocalPlayer
 local feedback = ReplicatedStorage:WaitForChild("HellFeastRemotes"):WaitForChild("Feedback")
@@ -13,6 +14,20 @@ gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 20
 gui.Parent = player:WaitForChild("PlayerGui")
+
+local hitSound = Instance.new("Sound")
+hitSound.Name = "HellFeastHit"
+hitSound.SoundId = "rbxasset://sounds/swordslash.wav"
+hitSound.Volume = 0.24
+hitSound.PlaybackSpeed = 1.12
+hitSound.Parent = SoundService
+
+local rewardSound = Instance.new("Sound")
+rewardSound.Name = "HellFeastReward"
+rewardSound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+rewardSound.Volume = 0.28
+rewardSound.PlaybackSpeed = 0.82
+rewardSound.Parent = SoundService
 
 local damageFlash = Instance.new("Frame")
 damageFlash.Name = "DamageFlash"
@@ -178,12 +193,18 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 	if kind == "HIT" then
 		showHitMarker(payload.IsBoss == true)
 		floatingDamage(payload.Position, payload.Damage or 0, payload.IsBoss == true)
+		hitSound.PlaybackSpeed = payload.IsBoss and 0.82 or (1.05 + math.random() * 0.18)
+		hitSound:Play()
 	elseif kind == "KILL" then
 		fullPulse(payload.IsBoss and Color3.fromRGB(145, 45, 30) or Color3.fromRGB(80, 35, 65))
 	elseif kind == "GRAFT" then
 		fullPulse(Color3.fromRGB(92, 46, 135))
+		rewardSound.PlaybackSpeed = 0.70
+		rewardSound:Play()
 	elseif kind == "COOK" then
 		fullPulse(Color3.fromRGB(130, 82, 35))
+		rewardSound.PlaybackSpeed = 1.10
+		rewardSound:Play()
 	elseif kind == "WATCHER_BOLT" then
 		flashDamage(0.36)
 	elseif kind == "HOUND_CHARGE" then
@@ -191,6 +212,8 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 	elseif kind == "ENEMY_HIT" then
 		flashDamage(0.26)
 	elseif kind == "BOSS_SPAWN" then
+		rewardSound.PlaybackSpeed = 0.55
+		rewardSound:Play()
 		bossFrame.Visible = true
 		bossFrame.Size = UDim2.new(0.2, 0, 0, 62)
 		TweenService:Create(bossFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back), {
