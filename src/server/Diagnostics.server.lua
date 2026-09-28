@@ -55,6 +55,11 @@ check(type(Config.Combat.AssistAngleDegrees) == "number" and Config.Combat.Assis
 check(type(Config.Combat.CloseAssistRange) == "number" and Config.Combat.CloseAssistRange > 0 and Config.Combat.CloseAssistRange <= Config.Combat.AttackRange, "melee close-assist range is valid")
 check(type(Config.Combat.AttackLungeSpeed) == "number" and Config.Combat.AttackLungeSpeed >= 0, "melee lunge speed is valid")
 
+check(type(Config.Safety.SanctuaryRadius) == "number" and Config.Safety.SanctuaryRadius > 20, "sanctuary radius is valid")
+check(type(Config.Safety.ArrivalGraceSeconds) == "number" and Config.Safety.ArrivalGraceSeconds >= 3, "arrival grace is valid")
+check(Config.Safety.RecoveryMinY < 0, "out-of-bounds Y threshold is valid")
+check(Config.Safety.RecoveryMaxAbsX > 160 and Config.Safety.RecoveryMaxAbsZ > 160, "arena recovery bounds are valid")
+
 check(type(Config.Director.TickSeconds) == "number" and Config.Director.TickSeconds > 0, "Hell Director tick is valid")
 check(Config.Director.SpawnIntervalFast < Config.Director.SpawnIntervalSlow, "Hell Director spawn interval range is ordered")
 check(Config.Director.MinPressure < Config.Director.MaxPressure, "Hell Director pressure range is ordered")
@@ -67,6 +72,9 @@ if world then
 	for _, folderName in ipairs({"Demons", "LostSouls", "Drops", "Hazards", "HellKitchen", "Regions"}) do
 		check(world:FindFirstChild(folderName) ~= nil, "world contains " .. folderName)
 	end
+
+	local kitchen = world:FindFirstChild("HellKitchen")
+	check(kitchen and kitchen:FindFirstChild("SanctuaryBoundary") ~= nil, "HELL KITCHEN sanctuary boundary exists")
 end
 
 local remotes = ReplicatedStorage:WaitForChild("HellFeastRemotes", 10)
