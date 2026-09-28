@@ -58,6 +58,29 @@ Config.Spawning = {
 }
 
 
+Config.Director = {
+	TickSeconds = 2,
+	BasePressure = 0.46,
+	MinPressure = 0.18,
+	MaxPressure = 1.0,
+	LateRunBoost = 0.24,
+	CircleBoost = 0.09,
+	ExtraPlayerBoost = 0.07,
+	PowerBoost = 0.14,
+	LowHealthRelief = 0.22,
+	LowHungerRelief = 0.18,
+	SpawnIntervalFast = 2.8,
+	SpawnIntervalSlow = 8.5,
+	BaseDemonCap = 7,
+	DemonCapPerPlayer = 3,
+	DemonCapPerCircle = 2,
+	MaxExtraPressureCap = 5,
+	SoulFloorPerPlayer = 2,
+	EmergencySoulHungerRatio = 0.24,
+	EmergencySoulCooldown = 28,
+}
+
+
 Config.Regions = {
 	AshFields = {
 		DisplayName = "ASH FIELDS",

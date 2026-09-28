@@ -1013,7 +1013,7 @@ local function createDemon(demonType, circle, forcedPosition)
 	return model
 end
 
-local function createLostSoul()
+local function createLostSoul(forcedPosition)
 	local model = Instance.new("Model")
 	model.Name = "Lost Soul"
 	model.Parent = soulsFolder
@@ -1025,7 +1025,7 @@ local function createLostSoul()
 	root.Size = Vector3.new(2.3, 4.2, 2.0)
 	root.Material = Enum.Material.ForceField
 	root.Color = Color3.fromRGB(185, 190, 210)
-	root.Position = math.random() < 0.68 and randomArenaPosition("SoulPens") or randomArenaPosition()
+	root.Position = forcedPosition or (math.random() < 0.68 and randomArenaPosition("SoulPens") or randomArenaPosition())
 	root.Parent = model
 	model.PrimaryPart = root
 
@@ -1277,21 +1277,159 @@ task.spawn(function()
 	end
 end)
 
-task.spawn(function()
-	while true do
-		local interval = Config.Spawning.DemonInterval / (1 + (currentCircle - 1) * Config.Circle.SpawnSpeedPerCircle)
-		task.wait(interval)
-		if runActive and Workspace:GetAttribute("RunState") ~= "BOSS" and #demonsFolder:GetChildren() < Config.Spawning.MaxDemons + (currentCircle - 1) * 3 then
-			createDemon(chooseDemonType(currentCircle), currentCircle)
+local function equippedGraftCount(player)
+	local count = 0
+	for _, data in pairs(Config.Parts) do
+		local equipped = player:GetAttribute("Part_" .. data.Slot)
+		if equipped and equipped ~= "" then
+			count += 1
 		end
 	end
-end)
+	return count
+end
+
+local function directorSnapshot()
+	local living = 0
+	local healthTotal = 0
+	local hungerTotal = 0
+	local graftTotal = 0
+	local hungriestPlayer
+	local hungriestRatio = math.huge
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		local character, humanoid = getCharacterHumanoid(player)
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if humanoid and root and humanoid.Health > 0 then
+			living += 1
+			healthTotal += humanoid.Health / math.max(1, humanoid.MaxHealth)
+
+			local hungerRatio = (player:GetAttribute("Hunger") or 0) / math.max(1, maxHungerFor(player))
+			hungerTotal += hungerRatio
+			graftTotal += equippedGraftCount(player)
+
+			if hungerRatio < hungriestRatio then
+				hungriestRatio = hungerRatio
+				hungriestPlayer = player
+			end
+		end
+	end
+
+	if living == 0 then
+		return {
+			Living = 0,
+			AverageHealth = 1,
+			AverageHunger = 1,
+			AverageGrafts = 0,
+			HungriestPlayer = nil,
+			HungriestRatio = 1,
+		}
+	end
+
+	return {
+		Living = living,
+		AverageHealth = healthTotal / living,
+		AverageHunger = hungerTotal / living,
+		AverageGrafts = graftTotal / living,
+		HungriestPlayer = hungriestPlayer,
+		HungriestRatio = hungriestRatio,
+	}
+end
+
+local function calculateDirectorPressure(snapshot)
+	if snapshot.Living <= 0 then
+		return Config.Director.MinPressure
+	end
+
+	local remaining = Workspace:GetAttribute("RunTimeLeft") or Config.RunDuration
+	local progress = 1 - math.clamp(remaining / Config.RunDuration, 0, 1)
+	local pressure = Config.Director.BasePressure
+	pressure += progress * Config.Director.LateRunBoost
+	pressure += math.max(0, currentCircle - 1) * Config.Director.CircleBoost
+	pressure += math.max(0, snapshot.Living - 1) * Config.Director.ExtraPlayerBoost
+	pressure += math.clamp(snapshot.AverageGrafts / 4, 0, 1) * Config.Director.PowerBoost
+	pressure -= math.max(0, 1 - snapshot.AverageHealth) * Config.Director.LowHealthRelief
+
+	if snapshot.AverageHunger < 0.45 then
+		local hungerDistress = (0.45 - snapshot.AverageHunger) / 0.45
+		pressure -= hungerDistress * Config.Director.LowHungerRelief
+	end
+
+	return math.clamp(pressure, Config.Director.MinPressure, Config.Director.MaxPressure)
+end
+
+local function directorModeFor(pressure)
+	if pressure >= 0.74 then
+		return "HUNT"
+	elseif pressure <= 0.34 then
+		return "QUIET"
+	end
+	return "STALK"
+end
+
+Workspace:SetAttribute("DirectorPressure", Config.Director.BasePressure)
+Workspace:SetAttribute("DirectorMode", "STALK")
+Workspace:SetAttribute("DirectorDemonCap", Config.Director.BaseDemonCap)
 
 task.spawn(function()
+	local nextDemonAt = 0
+	local nextSoulAt = 0
+	local lastEmergencySoulAt = 0
+
 	while true do
-		task.wait(Config.Spawning.SoulInterval)
-		if runActive and #soulsFolder:GetChildren() < Config.Spawning.MaxSouls then
+		task.wait(Config.Director.TickSeconds)
+
+		if not runActive or Workspace:GetAttribute("RunState") == "BOSS" then
+			Workspace:SetAttribute("DirectorMode", "STALK")
+			continue
+		end
+
+		local now = os.clock()
+		local snapshot = directorSnapshot()
+		local pressure = calculateDirectorPressure(snapshot)
+		local mode = directorModeFor(pressure)
+
+		local demonCap = Config.Director.BaseDemonCap
+			+ math.max(0, snapshot.Living - 1) * Config.Director.DemonCapPerPlayer
+			+ math.max(0, currentCircle - 1) * Config.Director.DemonCapPerCircle
+			+ math.floor(pressure * Config.Director.MaxExtraPressureCap + 0.5)
+
+		local soulTarget = math.min(
+			Config.Spawning.MaxSouls + math.max(0, snapshot.Living - 1),
+			math.max(3, snapshot.Living * Config.Director.SoulFloorPerPlayer)
+		)
+
+		Workspace:SetAttribute("DirectorPressure", pressure)
+		Workspace:SetAttribute("DirectorMode", mode)
+		Workspace:SetAttribute("DirectorDemonCap", demonCap)
+
+		if now >= nextDemonAt and #demonsFolder:GetChildren() < demonCap then
+			createDemon(chooseDemonType(currentCircle), currentCircle)
+
+			local interval = Config.Director.SpawnIntervalSlow
+				- (Config.Director.SpawnIntervalSlow - Config.Director.SpawnIntervalFast) * pressure
+			nextDemonAt = now + interval
+		end
+
+		if now >= nextSoulAt and #soulsFolder:GetChildren() < soulTarget then
 			createLostSoul()
+			local soulInterval = Config.Spawning.SoulInterval + pressure * 3
+			nextSoulAt = now + soulInterval
+		end
+
+		if snapshot.HungriestPlayer
+			and snapshot.HungriestRatio <= Config.Director.EmergencySoulHungerRatio
+			and (snapshot.HungriestPlayer:GetAttribute("Souls") or 0) <= 0
+			and now - lastEmergencySoulAt >= Config.Director.EmergencySoulCooldown then
+
+			local character = snapshot.HungriestPlayer.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if root then
+				local right = root.CFrame.RightVector
+				local spawnPosition = root.Position + Vector3.new(right.X, 0, right.Z) * 14
+				createLostSoul(Vector3.new(spawnPosition.X, 3, spawnPosition.Z))
+				lastEmergencySoulAt = now
+				notify(snapshot.HungriestPlayer, "A Lost Soul surfaced nearby.")
+			end
 		end
 	end
 end)
