@@ -2,6 +2,16 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
+
+local waitStarted = os.clock()
+while player:GetAttribute("TotalRuns") == nil and os.clock() - waitStarted < 6 do
+	task.wait(0.1)
+end
+
+if (player:GetAttribute("TotalRuns") or 0) > 0 then
+	return
+end
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "HellFeastTutorial"
 gui.ResetOnSpawn = false
