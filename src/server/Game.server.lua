@@ -363,7 +363,6 @@ local function equipPart(player, partName)
 		player:SetAttribute("RunDiscoveries", (player:GetAttribute("RunDiscoveries") or 0) + 1)
 		notify(player, "HELL BOOK UPDATED • " .. data.DisplayName)
 		feedback(player, "DISCOVERY", {Category = "PART", Name = data.DisplayName})
-		savePlayer(player)
 	end
 
 	if previous and previous ~= "" and previous ~= partName then
