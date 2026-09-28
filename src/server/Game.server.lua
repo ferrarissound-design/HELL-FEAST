@@ -1843,8 +1843,51 @@ local function findBoss()
 	return nil
 end
 
+local DEBUG_ACTIONS = {
+	HEAL_FEED = true,
+	SOULS = true,
+	GRAFT = true,
+	SPAWN = true,
+	BOSS_NOW = true,
+	PHASE_2 = true,
+	PHASE_3 = true,
+	BOSS_1HP = true,
+	LOW_HUNGER = true,
+	KILL_SELF = true,
+	OOB_TEST = true,
+	SAVE_NOW = true,
+	CIRCLE = true,
+	TP_KITCHEN = true,
+	TP_BOSS = true,
+	CLEAR = true,
+}
+
 debugRemote.OnServerEvent:Connect(function(player, action, payload)
 	if not RunService:IsStudio() then
+		return
+	end
+	if not allowRemote(player, "DebugCommand", Config.Security.DebugRemoteMinInterval) then
+		return
+	end
+	if type(action) ~= "string" or DEBUG_ACTIONS[action] ~= true then
+		rejectRemote(player, "DebugCommand:action")
+		return
+	end
+	if action == "GRAFT" and (type(payload) ~= "string" or not Config.Parts[payload]) then
+		rejectRemote(player, "DebugCommand:graft")
+		return
+	end
+	if action == "SPAWN" and (type(payload) ~= "string" or not Config.Demons[payload] or Config.Demons[payload].IsBoss) then
+		rejectRemote(player, "DebugCommand:spawn")
+		return
+	end
+	if action == "CIRCLE" and (
+		not finiteNumber(payload)
+		or payload < 1
+		or payload > Config.MaxCircle
+		or payload % 1 ~= 0
+	) then
+		rejectRemote(player, "DebugCommand:circle")
 		return
 	end
 
@@ -1858,10 +1901,10 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 	elseif action == "SOULS" then
 		player:SetAttribute("Souls", (player:GetAttribute("Souls") or 0) + 3)
 		notify(player, "DEBUG • +3 Lost Souls.")
-	elseif action == "GRAFT" and type(payload) == "string" and Config.Parts[payload] then
+	elseif action == "GRAFT" then
 		equipPart(player, payload)
 		notify(player, "DEBUG • grafted " .. Config.Parts[payload].DisplayName)
-	elseif action == "SPAWN" and type(payload) == "string" and Config.Demons[payload] and not Config.Demons[payload].IsBoss then
+	elseif action == "SPAWN" then
 		if not runActive then
 			notify(player, "DEBUG • wait for HELL RUN to start.")
 			return
@@ -1938,8 +1981,8 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 		else
 			notify(player, "DEBUG • profile save blocked/failed: " .. tostring(err))
 		end
-	elseif action == "CIRCLE" and type(payload) == "number" then
-		currentCircle = math.clamp(math.floor(payload), 1, Config.MaxCircle)
+	elseif action == "CIRCLE" then
+		currentCircle = payload
 		Workspace:SetAttribute("Circle", currentCircle)
 		World.ApplyCircleStyle(currentCircle)
 		notifyAll(string.format("DEBUG • switched to Circle %d.", currentCircle))
@@ -1954,6 +1997,95 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 		clearRunEntities(true)
 		Workspace:SetAttribute("BossAlive", false)
 		notify(player, "DEBUG • entities cleared.")
+	end
+end)
+
+local function recordWatchdogRecovery(reason)
+	local recoveries = (Workspace:GetAttribute("WatchdogRecoveries") or 0) + 1
+	Workspace:SetAttribute("WatchdogRecoveries", recoveries)
+	Workspace:SetAttribute("WatchdogStatus", "RECOVERED")
+	Workspace:SetAttribute("WatchdogLastRecovery", reason)
+	warn(string.format("[HELL FEAST WATCHDOG] recovery #%d • %s", recoveries, reason))
+
+	task.delay(6, function()
+		if Workspace:GetAttribute("WatchdogLastRecovery") == reason then
+			Workspace:SetAttribute("WatchdogStatus", "OK")
+		end
+	end)
+end
+
+task.spawn(function()
+	local bossMissingSince = nil
+	local emptyRunSince = nil
+	local lastRecoveryAt = 0
+
+	while true do
+		task.wait(Config.Watchdog.TickSeconds)
+
+		local now = os.clock()
+		local state = Workspace:GetAttribute("RunState") or ""
+
+		if runActive
+			and state == "BOSS"
+			and Workspace:GetAttribute("BossAlive") == true
+			and not circleBossDefeated then
+
+			local boss = findBoss()
+			if boss then
+				bossMissingSince = nil
+			else
+				bossMissingSince = bossMissingSince or now
+				if now - bossMissingSince >= Config.Watchdog.BossMissingGraceSeconds
+					and now - lastRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+
+					lastRecoveryAt = now
+					bossMissingSince = nil
+					createDemon("Butcher", currentCircle, Config.Navigation.BossPosition)
+					feedbackAll("BOSS_SPAWN", {Circle = currentCircle})
+					recordWatchdogRecovery("respawned missing THE BUTCHER")
+				end
+			end
+		else
+			bossMissingSince = nil
+		end
+
+		if runActive and state == "HELL RUN" then
+			local snapshot = directorSnapshot()
+			if snapshot.Living > 0 and #demonsFolder:GetChildren() == 0 then
+				emptyRunSince = emptyRunSince or now
+				if now - emptyRunSince >= Config.Watchdog.EmptyRunGraceSeconds
+					and now - lastRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+
+					lastRecoveryAt = now
+					emptyRunSince = nil
+					createDemon(chooseDemonType(currentCircle), currentCircle)
+					recordWatchdogRecovery("restored an empty active hunt")
+				end
+			else
+				emptyRunSince = nil
+			end
+		else
+			emptyRunSince = nil
+		end
+
+		if decisionOpen and decisionStartedAt
+			and now - decisionStartedAt >= Config.DecisionDuration + Config.Watchdog.DecisionOvertimeSeconds
+			and now - lastRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+
+			local changed = false
+			for userId in pairs(decisionEligible) do
+				if votes[userId] ~= "ESCAPE" and votes[userId] ~= "DESCEND" then
+					votes[userId] = "ESCAPE"
+					changed = true
+				end
+			end
+
+			if changed then
+				lastRecoveryAt = now
+				updateDecisionTallies()
+				recordWatchdogRecovery("forced overdue decision toward ESCAPE")
+			end
+		end
 	end
 end)
 
@@ -1989,6 +2121,7 @@ end
 
 local function conductDecision()
 	decisionOpen = true
+	decisionStartedAt = os.clock()
 	votes = {}
 	decisionEligible = {}
 	Workspace:SetAttribute("DecisionOpen", true)
@@ -2012,6 +2145,7 @@ local function conductDecision()
 	end
 
 	decisionOpen = false
+	decisionStartedAt = nil
 	Workspace:SetAttribute("DecisionOpen", false)
 
 	local voted, eligible, escapeVotes, descendVotes = updateDecisionTallies()
