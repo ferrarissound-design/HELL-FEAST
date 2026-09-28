@@ -509,17 +509,29 @@ local function equipPart(player, partName)
 	feedback(player, "GRAFT", {Name = data.DisplayName, Slot = data.Slot})
 end
 
+local function handleSaveResult(player, ok, err)
+	if ok then
+		return true
+	end
+
+	warn(string.format("[HELL FEAST] Save failed for %s: %s", player.Name, tostring(err)))
+	if player.Parent and player:GetAttribute("SaveWarningShown") ~= true then
+		player:SetAttribute("SaveWarningShown", true)
+		notify(player, "Progress save unavailable • this server will not overwrite your existing profile.")
+	end
+	return false
+end
+
 local function savePlayer(player)
 	task.spawn(function()
 		local ok, err = Progression.Save(player)
-		if not ok then
-			warn(string.format("[HELL FEAST] Save failed for %s: %s", player.Name, tostring(err)))
-			if player.Parent and player:GetAttribute("SaveWarningShown") ~= true then
-				player:SetAttribute("SaveWarningShown", true)
-				notify(player, "Progress save unavailable • this server will not overwrite your existing profile.")
-			end
-		end
+		handleSaveResult(player, ok, err)
 	end)
+end
+
+local function savePlayerNow(player)
+	local ok, err = Progression.Save(player)
+	return handleSaveResult(player, ok, err)
 end
 
 local function giveWeapon(player)
@@ -1131,9 +1143,19 @@ local function createDemon(demonType, circle, forcedPosition)
 								if model.Parent and runActive then
 									local currentCharacter, currentHumanoid = getCharacterHumanoid(targetPlayer)
 									local currentRoot = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
+									local currentDelta = currentRoot and (currentRoot.Position - body.Position)
+									local coverClear = currentDelta and currentDelta.Magnitude > 0.01
+										and directionIsClear(
+											model,
+											body,
+											Vector3.new(currentDelta.X, 0, currentDelta.Z),
+											math.max(0.1, currentDelta.Magnitude),
+											currentCharacter
+										)
 									if currentRoot and currentHumanoid and currentHumanoid.Health > 0
 										and not isPlayerProtected(targetPlayer, currentRoot)
-										and (currentRoot.Position - body.Position).Magnitude <= 7.5 then
+										and currentDelta.Magnitude <= 7.5
+										and coverClear then
 										currentHumanoid:TakeDamage(damage)
 										feedback(targetPlayer, "ENEMY_HIT", {Demon = data.DisplayName})
 										local knock = currentRoot.Position - body.Position
@@ -1629,7 +1651,6 @@ end
 
 Players.PlayerAdded:Connect(setupPlayer)
 Players.PlayerRemoving:Connect(function(player)
-	savePlayer(player)
 	lastAttackAt[player] = nil
 	lastDashAt[player] = nil
 	hazardTouchAt[player] = nil
@@ -1642,6 +1663,10 @@ Players.PlayerRemoving:Connect(function(player)
 	if decisionOpen then
 		updateDecisionTallies()
 	end
+
+	-- Start the final save synchronously in this callback so the per-user save
+	-- lock is acquired before a same-server rapid reconnect can begin loading.
+	savePlayerNow(player)
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
