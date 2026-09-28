@@ -21,6 +21,12 @@ Config.Combat = {
 	AttackCooldown = 0.55,
 }
 
+Config.Movement = {
+	DashSpeed = 58,
+	DashCooldown = 2.8,
+	DashHungerCost = 2.5,
+}
+
 Config.Circle = {
 	HealthMultiplierPerCircle = 0.28,
 	DamageMultiplierPerCircle = 0.18,

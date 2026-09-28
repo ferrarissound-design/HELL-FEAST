@@ -166,6 +166,88 @@ local function fullPulse(color)
 	TweenService:Create(pulse, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
 end
 
+
+local function telegraphColor(tone)
+	if tone == "WATCHER" then
+		return Color3.fromRGB(180, 80, 225)
+	elseif tone == "HOUND" then
+		return Color3.fromRGB(255, 115, 35)
+	elseif tone == "BUTCHER" then
+		return Color3.fromRGB(220, 45, 38)
+	elseif tone == "BRUTE" then
+		return Color3.fromRGB(205, 110, 70)
+	end
+	return Color3.fromRGB(230, 100, 70)
+end
+
+local function createCircleTelegraph(payload)
+	if typeof(payload.Position) ~= "Vector3" then
+		return
+	end
+
+	local radius = tonumber(payload.Radius) or 6
+	local duration = tonumber(payload.Duration) or 0.6
+	local ring = Instance.new("Part")
+	ring.Name = "LocalAttackTelegraph"
+	ring.Anchored = true
+	ring.CanCollide = false
+	ring.CanTouch = false
+	ring.CanQuery = false
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Material = Enum.Material.Neon
+	ring.Color = telegraphColor(payload.Tone)
+	ring.Transparency = 0.42
+	ring.Size = Vector3.new(0.16, radius * 2, radius * 2)
+	ring.CFrame = CFrame.new(payload.Position.X, 0.68, payload.Position.Z) * CFrame.Angles(0, 0, math.rad(90))
+	ring.Parent = Workspace
+
+	local light = Instance.new("PointLight")
+	light.Color = ring.Color
+	light.Brightness = 0.6
+	light.Range = math.min(radius * 1.6, 32)
+	light.Parent = ring
+
+	TweenService:Create(ring, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		Transparency = 0.1,
+		Color = Color3.fromRGB(255, 235, 220),
+	}):Play()
+	Debris:AddItem(ring, duration + 0.08)
+end
+
+local function createLineTelegraph(payload)
+	if typeof(payload.Start) ~= "Vector3" or typeof(payload.Finish) ~= "Vector3" then
+		return
+	end
+
+	local duration = tonumber(payload.Duration) or 0.7
+	local width = tonumber(payload.Width) or 4
+	local startPosition = Vector3.new(payload.Start.X, 0.72, payload.Start.Z)
+	local endPosition = Vector3.new(payload.Finish.X, 0.72, payload.Finish.Z)
+	local delta = endPosition - startPosition
+	if delta.Magnitude <= 0.1 then
+		return
+	end
+
+	local strip = Instance.new("Part")
+	strip.Name = "LocalChargeTelegraph"
+	strip.Anchored = true
+	strip.CanCollide = false
+	strip.CanTouch = false
+	strip.CanQuery = false
+	strip.Material = Enum.Material.Neon
+	strip.Color = telegraphColor(payload.Tone)
+	strip.Transparency = 0.46
+	strip.Size = Vector3.new(width * 2, 0.16, delta.Magnitude)
+	strip.CFrame = CFrame.lookAt((startPosition + endPosition) / 2, endPosition)
+	strip.Parent = Workspace
+
+	TweenService:Create(strip, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		Transparency = 0.08,
+		Color = Color3.fromRGB(255, 225, 190),
+	}):Play()
+	Debris:AddItem(strip, duration + 0.08)
+end
+
 local function bindHumanoid(character)
 	local humanoid = character:WaitForChild("Humanoid", 8)
 	if not humanoid then
@@ -190,7 +272,14 @@ end
 feedback.OnClientEvent:Connect(function(kind, payload)
 	payload = payload or {}
 
-	if kind == "HIT" then
+	if kind == "TELEGRAPH_CIRCLE" then
+		createCircleTelegraph(payload)
+	elseif kind == "TELEGRAPH_LINE" then
+		createLineTelegraph(payload)
+	elseif kind == "BUTCHER_SLAM" then
+		flashDamage(0.48)
+		fullPulse(Color3.fromRGB(130, 25, 25))
+	elseif kind == "HIT" then
 		showHitMarker(payload.IsBoss == true)
 		floatingDamage(payload.Position, payload.Damage or 0, payload.IsBoss == true)
 		hitSound.PlaybackSpeed = payload.IsBoss and 0.82 or (1.05 + math.random() * 0.18)
