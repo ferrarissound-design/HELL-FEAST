@@ -74,6 +74,20 @@ During a run:
 
 Rejoin Play mode and verify persistent records when Studio DataStore access is enabled.
 
+## Visual atmosphere check
+
+Verify in each Circle:
+
+- Circle 1 feels dim and smoky but readable.
+- Circle 2 shifts warmer and more oppressive.
+- Circle 3 shifts colder / stranger with stronger bloom and haze.
+- HELL KITCHEN beacon has visible flame and smoke.
+- cooking stations glow without obscuring prompts.
+- Lost Souls visibly pulse.
+- demon deaths produce a brief local shard burst.
+- Lost Soul capture produces a rising soul-orb effect.
+- ash motes remain lightweight and do not obscure combat telegraphs.
+
 ## Mobile check
 
 Use Roblox Studio device emulation and verify:
