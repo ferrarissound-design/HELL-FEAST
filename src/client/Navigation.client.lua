@@ -186,15 +186,16 @@ local function setAlert(level)
 	}):Play()
 end
 
-local function equippedGraftCount()
-	local count = 0
-	for _, part in pairs(Config.Parts) do
-		local equipped = player:GetAttribute("Part_" .. part.Slot)
+local graftSlots = {"HEAD", "EYE", "LEFT_ARM", "RIGHT_ARM", "LEGS", "BACK"}
+
+local function hasAnyGraft()
+	for _, slot in ipairs(graftSlots) do
+		local equipped = player:GetAttribute("Part_" .. slot)
 		if equipped and equipped ~= "" then
-			count += 1
+			return true
 		end
 	end
-	return count
+	return false
 end
 
 local function objectiveText(runState, bossAlive, hungerRatio)
@@ -227,7 +228,7 @@ local function objectiveText(runState, bossAlive, hungerRatio)
 		end
 		return "OBJECTIVE • Find a Lost Soul before hunger drops"
 	end
-	if equippedGraftCount() == 0 then
+	if not hasAnyGraft() then
 		return "OBJECTIVE • Hunt a demon and graft its part"
 	end
 	if souls == 0 then
