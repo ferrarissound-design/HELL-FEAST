@@ -54,7 +54,11 @@ local function cameraKick()
 		return
 	end
 
-	local base = camera.FieldOfView
+	local base = camera:GetAttribute("HellFeastBaseFOV")
+	if type(base) ~= "number" then
+		base = camera.FieldOfView
+		camera:SetAttribute("HellFeastBaseFOV", base)
+	end
 	TweenService:Create(camera, TweenInfo.new(0.07, Enum.EasingStyle.Quad), {
 		FieldOfView = base + 3,
 	}):Play()
