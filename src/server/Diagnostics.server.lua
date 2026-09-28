@@ -58,6 +58,13 @@ for recipeKey, recipe in pairs(Config.Recipes) do
 	check(type(recipe.HungerRestore) == "number" and recipe.HungerRestore >= 0, recipeKey .. " has valid hunger restore")
 end
 
+for upgradeKey, upgrade in pairs(Config.Upgrades) do
+	check(type(upgrade.DisplayName) == "string" and upgrade.DisplayName ~= "", upgradeKey .. " has DisplayName")
+	check(type(upgrade.BaseCost) == "number" and upgrade.BaseCost > 0, upgradeKey .. " has valid base DNA cost")
+	check(type(upgrade.CostStep) == "number" and upgrade.CostStep >= 0, upgradeKey .. " has valid cost step")
+	check(type(upgrade.MaxLevel) == "number" and upgrade.MaxLevel >= 1, upgradeKey .. " has valid max level")
+end
+
 check(type(Config.Combat.AssistAngleDegrees) == "number" and Config.Combat.AssistAngleDegrees > 0 and Config.Combat.AssistAngleDegrees <= 180, "melee assist angle is valid")
 check(type(Config.Combat.CloseAssistRange) == "number" and Config.Combat.CloseAssistRange > 0 and Config.Combat.CloseAssistRange <= Config.Combat.AttackRange, "melee close-assist range is valid")
 check(type(Config.Combat.AttackLungeSpeed) == "number" and Config.Combat.AttackLungeSpeed >= 0, "melee lunge speed is valid")

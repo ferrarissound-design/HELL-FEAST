@@ -52,6 +52,8 @@ The experience uses abstract Lost Souls and stylized transformations rather than
 - **SOUL BURGER**: hunger + health
 - **SINNER STEW**: slows hunger drain temporarily
 
+HELL KITCHEN stations show their Soul cost and effect before interaction. Permanent upgrade shrines also show their effect and starting DNA cost.
+
 ## HELL BOOK & run records
 
 Progress now leaves a permanent trail instead of disappearing between runs:
@@ -219,7 +221,7 @@ The server independently rejects all debug commands outside Studio. A Studio-onl
 
 See `PLAYTEST.md` for the full test matrix and `RELEASE.md` for the short publish gate.
 
-The current release candidate identifies itself in Studio as **HF-RC-20260929-02**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
+The current release candidate identifies itself in Studio as **HF-RC-20260929-03**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
 
 DEV PANEL also shows live **FPS, demon count, Lost Soul count, Circle, run state, and FX mode** so performance or spawn-density problems can be spotted during the same smoke test.
 

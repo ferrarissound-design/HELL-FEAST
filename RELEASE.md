@@ -2,7 +2,7 @@
 
 Release candidate build:
 
-`HF-RC-20260929-02`
+`HF-RC-20260929-03`
 
 This checklist is intentionally short. If a step fails, fix that failure before publishing.
 
@@ -21,7 +21,7 @@ Expected after the release-gate PR is merged:
 - `git status` is clean
 - Roblox Studio connects through Rojo
 - Play mode shows **DEV PANEL**
-- DEV PANEL shows build **HF-RC-20260929-02**
+- DEV PANEL shows build **HF-RC-20260929-03**
 - DEV PANEL shows **QA PASS** with zero failed checks
 - DEV PANEL runtime line shows plausible FPS / demon / Soul counts and updates while playing
 
@@ -35,7 +35,9 @@ Open DEV PANEL and run:
 2. **Set Hunger → 10**
    - hunger warning should appear
 3. **+3 Lost Souls**
+   - confirm each kitchen station visibly shows Soul cost + effect
    - cook one recipe in HELL KITCHEN
+   - confirm upgrade shrines show effect + starting DNA cost
 4. **Kill Player**
    - death overlay should explain the losses
    - respawn should receive the short VEIL
