@@ -140,6 +140,14 @@ The playable build now also includes:
 - Bone Crawler hunger attacks
 - graft and cooking screen feedback
 
+## Adaptive Hell Director
+
+Normal-circle pacing is now controlled by a lightweight server-side Director instead of a fixed spawn timer.
+
+It considers current Circle, run progress, living player count, health, hunger and graft power. Healthy upgraded groups gradually face more pressure, while badly hurt or starving players get breathing room. A player who reaches critical hunger with no carried Souls can receive a cooldown-limited emergency Lost Soul so a run is less likely to collapse into an unrecoverable food soft-lock.
+
+The HUD exposes only the atmospheric state **QUIET / STALK / HUNT**, not the underlying assistance math.
+
 ## Studio playtest tools
 
 When running inside Roblox Studio, a **DEV PANEL** is available for rapid QA. It can restore health/hunger, grant Souls, equip grafts, spawn each demon, jump directly into THE BUTCHER, force boss phases, switch circles, teleport between key locations, and clear spawned entities.
