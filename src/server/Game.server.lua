@@ -407,7 +407,14 @@ end
 
 local function savePlayer(player)
 	task.spawn(function()
-		Progression.Save(player)
+		local ok, err = Progression.Save(player)
+		if not ok then
+			warn(string.format("[HELL FEAST] Save failed for %s: %s", player.Name, tostring(err)))
+			if player.Parent and player:GetAttribute("SaveWarningShown") ~= true then
+				player:SetAttribute("SaveWarningShown", true)
+				notify(player, "Progress save unavailable • this server will not overwrite your existing profile.")
+			end
+		end
 	end)
 end
 
@@ -938,7 +945,9 @@ local function createDemon(demonType, circle, forcedPosition)
 								if model.Parent and runActive then
 									local currentCharacter, currentHumanoid = getCharacterHumanoid(targetPlayer)
 									local currentRoot = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
-									if currentRoot and currentHumanoid and currentHumanoid.Health > 0 and (currentRoot.Position - body.Position).Magnitude <= 7.5 then
+									if currentRoot and currentHumanoid and currentHumanoid.Health > 0
+										and not isPlayerProtected(targetPlayer, currentRoot)
+										and (currentRoot.Position - body.Position).Magnitude <= 7.5 then
 										currentHumanoid:TakeDamage(damage)
 										feedback(targetPlayer, "ENEMY_HIT", {Demon = data.DisplayName})
 										local knock = currentRoot.Position - body.Position
@@ -1301,14 +1310,24 @@ local function setupPlayer(player)
 	player:SetAttribute("DecisionVote", "")
 	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 	player:SetAttribute("InSanctuary", true)
+	player:SetAttribute("SaveWarningShown", false)
 
 	for _, data in pairs(Config.Parts) do
 		player:SetAttribute("Part_" .. data.Slot, "")
 	end
 
-	Progression.Load(player, Config)
+	local _, profileReady = Progression.Load(player, Config)
 	recomputeStats(player)
 	player:SetAttribute("Hunger", maxHungerFor(player))
+
+	if not profileReady then
+		task.delay(1.2, function()
+			if player.Parent then
+				player:SetAttribute("SaveWarningShown", true)
+				notify(player, "Progress service unavailable • playing is allowed, but permanent progress is read-only this server.")
+			end
+		end)
+	end
 
 	player.CharacterAdded:Connect(function(character)
 		player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
