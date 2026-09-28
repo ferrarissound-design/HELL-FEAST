@@ -108,6 +108,24 @@ Verify:
 - DEV PANEL is usable during Studio testing
 - interaction prompts are readable
 
+## Release safety test
+
+Verify the failure cases that can ruin a public session:
+
+- stand inside HELL KITCHEN and confirm demons stop outside the sanctuary boundary
+- confirm the Rusty Cleaver cannot damage enemies from inside SANCTUARY
+- step outside and confirm combat immediately works again
+- walk a demon toward the sanctuary edge and confirm it cannot remain inside the protected radius
+- fall below the map and confirm the player is returned to HELL KITCHEN
+- cross the outer arena bounds and confirm recovery also works
+- join an already-running server and confirm the arrival protection message / VEIL status appears
+- confirm enemies ignore a newly joined or newly respawned player during the short arrival grace
+- start a fresh run and confirm all players are returned to HELL KITCHEN
+- with Studio DataStore access disabled or failing, confirm the HUD shows SAVE READ-ONLY
+- confirm permanent upgrades refuse purchases while progression is read-only
+- confirm a failed profile load cannot write default values over the profile
+- restore DataStore access and confirm normal saves clear the failure state
+
 ## Stop-ship bugs
 
 Do not publish a new build if any of these occur:
@@ -121,3 +139,7 @@ Do not publish a new build if any of these occur:
 - death permanently breaks controls
 - a client can trigger debug commands outside Studio
 - save errors destroy existing progression
+- enemies can attack players inside SANCTUARY
+- players can attack demons from inside SANCTUARY
+- falling out of the map leaves a player stranded
+- a failed profile load is allowed to overwrite stored progression

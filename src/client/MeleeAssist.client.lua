@@ -77,7 +77,7 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 	accumulator = 0
 
-	if not cleaverEquipped() then
+	if not cleaverEquipped() or player:GetAttribute("InSanctuary") == true then
 		highlight.Enabled = false
 		highlight.Adornee = nil
 		return

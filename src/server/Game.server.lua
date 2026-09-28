@@ -50,6 +50,8 @@ local circleBossDefeated = false
 local lastAttackAt = {}
 local lastDashAt = {}
 local hazardTouchAt = {}
+local lastRecoveryAt = {}
+local lastSanctuaryNoticeAt = {}
 local votes = {}
 
 Workspace:SetAttribute("RunState", "BOOTING")
@@ -63,6 +65,7 @@ local function notify(player, text)
 end
 
 local getCharacterHumanoid
+local isPlayerProtected
 
 local function feedback(player, kind, payload)
 	if player then
@@ -80,7 +83,9 @@ local function damagePlayersInRadius(position, radius, amount, feedbackKind)
 	for _, player in ipairs(Players:GetPlayers()) do
 		local character, humanoid = getCharacterHumanoid(player)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if root and humanoid and humanoid.Health > 0 and (root.Position - position).Magnitude <= radius then
+		if root and humanoid and humanoid.Health > 0
+			and not isPlayerProtected(player, root)
+			and (root.Position - position).Magnitude <= radius then
 			humanoid:TakeDamage(amount)
 			if feedbackKind then
 				feedback(player, feedbackKind, {Position = position, Damage = amount})
@@ -103,7 +108,7 @@ local function damagePlayersAlongSegment(a, b, width, amount, feedbackKind)
 	for _, player in ipairs(Players:GetPlayers()) do
 		local character, humanoid = getCharacterHumanoid(player)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if root and humanoid and humanoid.Health > 0 then
+		if root and humanoid and humanoid.Health > 0 and not isPlayerProtected(player, root) then
 			local point = Vector3.new(root.Position.X, a.Y, root.Position.Z)
 			if pointSegmentDistance(point, a, b) <= width then
 				humanoid:TakeDamage(amount)
@@ -127,6 +132,28 @@ getCharacterHumanoid = function(player)
 		return nil, nil
 	end
 	return character, character:FindFirstChildOfClass("Humanoid")
+end
+
+
+local function flatDistanceFromKitchen(position)
+	local kitchenPosition = Config.Navigation.KitchenPosition
+	local dx = position.X - kitchenPosition.X
+	local dz = position.Z - kitchenPosition.Z
+	return math.sqrt(dx * dx + dz * dz)
+end
+
+local function isInSanctuaryPosition(position)
+	return flatDistanceFromKitchen(position) <= Config.Safety.SanctuaryRadius
+end
+
+isPlayerProtected = function(player, root)
+	if not root then
+		return true
+	end
+	if isInSanctuaryPosition(root.Position) then
+		return true
+	end
+	return Workspace:GetServerTimeNow() < (player:GetAttribute("ArrivalProtectedUntil") or 0)
 end
 
 local function connectHazard(hazard)
@@ -380,7 +407,14 @@ end
 
 local function savePlayer(player)
 	task.spawn(function()
-		Progression.Save(player)
+		local ok, err = Progression.Save(player)
+		if not ok then
+			warn(string.format("[HELL FEAST] Save failed for %s: %s", player.Name, tostring(err)))
+			if player.Parent and player:GetAttribute("SaveWarningShown") ~= true then
+				player:SetAttribute("SaveWarningShown", true)
+				notify(player, "Progress save unavailable • this server will not overwrite your existing profile.")
+			end
+		end
 	end)
 end
 
@@ -435,6 +469,14 @@ local function giveWeapon(player)
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if not root then
+			return
+		end
+
+		if isInSanctuaryPosition(root.Position) then
+			if now - (lastSanctuaryNoticeAt[player] or 0) >= 2 then
+				lastSanctuaryNoticeAt[player] = now
+				notify(player, "SANCTUARY • weapons are sealed inside HELL KITCHEN.")
+			end
 			return
 		end
 
@@ -530,7 +572,7 @@ local function nearestLivingPlayer(position)
 	for _, player in ipairs(Players:GetPlayers()) do
 		local character, humanoid = getCharacterHumanoid(player)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if root and humanoid and humanoid.Health > 0 then
+		if root and humanoid and humanoid.Health > 0 and not isPlayerProtected(player, root) then
 			local distance = (root.Position - position).Magnitude
 			if distance < bestDistance then
 				bestDistance = distance
@@ -848,6 +890,21 @@ local function createDemon(demonType, circle, forcedPosition)
 		local lastCrossCut = os.clock()
 		model:SetAttribute("AttackBusy", false)
 		while model.Parent and not dead and runActive do
+			if not data.IsBoss and isInSanctuaryPosition(body.Position) then
+				local center = Config.Navigation.KitchenPosition
+				local away = Vector3.new(body.Position.X - center.X, 0, body.Position.Z - center.Z)
+				if away.Magnitude < 0.1 then
+					away = Vector3.new(0, 0, 1)
+				end
+				local safeRadius = Config.Safety.SanctuaryRadius + Config.Safety.SanctuaryDemonBuffer
+				local retreat = Vector3.new(
+					center.X + away.Unit.X * safeRadius,
+					body.Position.Y,
+					center.Z + away.Unit.Z * safeRadius
+				)
+				model:PivotTo(CFrame.lookAt(retreat, retreat + away.Unit))
+			end
+
 			local targetPlayer, distance = nearestLivingPlayer(body.Position)
 			if targetPlayer then
 				local character, humanoid = getCharacterHumanoid(targetPlayer)
@@ -888,7 +945,9 @@ local function createDemon(demonType, circle, forcedPosition)
 								if model.Parent and runActive then
 									local currentCharacter, currentHumanoid = getCharacterHumanoid(targetPlayer)
 									local currentRoot = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
-									if currentRoot and currentHumanoid and currentHumanoid.Health > 0 and (currentRoot.Position - body.Position).Magnitude <= 7.5 then
+									if currentRoot and currentHumanoid and currentHumanoid.Health > 0
+										and not isPlayerProtected(targetPlayer, currentRoot)
+										and (currentRoot.Position - body.Position).Magnitude <= 7.5 then
 										currentHumanoid:TakeDamage(damage)
 										feedback(targetPlayer, "ENEMY_HIT", {Demon = data.DisplayName})
 										local knock = currentRoot.Position - body.Position
@@ -1206,8 +1265,15 @@ local function resetPlayerForNewRun(player)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
 	player:SetAttribute("DecisionVote", "")
+	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
+	player:SetAttribute("InSanctuary", true)
 
-	local _, humanoid = getCharacterHumanoid(player)
+	local character, humanoid = getCharacterHumanoid(player)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.CFrame = CFrame.new(Config.Navigation.KitchenPosition + Vector3.new(0, 3, 8))
+	end
 	if humanoid then
 		humanoid.MaxHealth = maxHealthFor(player)
 		humanoid.Health = humanoid.MaxHealth
@@ -1242,16 +1308,29 @@ local function setupPlayer(player)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
 	player:SetAttribute("DecisionVote", "")
+	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
+	player:SetAttribute("InSanctuary", true)
+	player:SetAttribute("SaveWarningShown", false)
 
 	for _, data in pairs(Config.Parts) do
 		player:SetAttribute("Part_" .. data.Slot, "")
 	end
 
-	Progression.Load(player, Config)
+	local _, profileReady = Progression.Load(player, Config)
 	recomputeStats(player)
 	player:SetAttribute("Hunger", maxHungerFor(player))
 
+	if not profileReady then
+		task.delay(1.2, function()
+			if player.Parent then
+				player:SetAttribute("SaveWarningShown", true)
+				notify(player, "Progress service unavailable • playing is allowed, but permanent progress is read-only this server.")
+			end
+		end)
+	end
+
 	player.CharacterAdded:Connect(function(character)
+		player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 		local humanoid = character:WaitForChild("Humanoid", 8)
 		task.wait(0.35)
 		clearPartVisuals(character)
@@ -1279,8 +1358,17 @@ local function setupPlayer(player)
 
 	if player.Character then
 		task.defer(function()
+			player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 			recomputeStats(player)
 			giveWeapon(player)
+		end)
+	end
+
+	if runActive then
+		task.delay(1, function()
+			if player.Parent then
+				notify(player, string.format("Joined Circle %d in progress • %ds arrival protection.", currentCircle, Config.Safety.ArrivalGraceSeconds))
+			end
 		end)
 	end
 end
@@ -1291,6 +1379,8 @@ Players.PlayerRemoving:Connect(function(player)
 	lastAttackAt[player] = nil
 	lastDashAt[player] = nil
 	hazardTouchAt[player] = nil
+	lastRecoveryAt[player] = nil
+	lastSanctuaryNoticeAt[player] = nil
 	votes[player.UserId] = nil
 end)
 
@@ -1306,7 +1396,33 @@ end)
 
 task.spawn(function()
 	while true do
-		task.wait(1)
+		task.wait(0.5)
+		for _, player in ipairs(Players:GetPlayers()) do
+			local character, humanoid = getCharacterHumanoid(player)
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if root and humanoid and humanoid.Health > 0 then
+				local inSanctuary = isInSanctuaryPosition(root.Position)
+				player:SetAttribute("InSanctuary", inSanctuary)
+
+				local position = root.Position
+				local outOfBounds = position.Y < Config.Safety.RecoveryMinY
+					or math.abs(position.X) > Config.Safety.RecoveryMaxAbsX
+					or math.abs(position.Z) > Config.Safety.RecoveryMaxAbsZ
+
+				if outOfBounds then
+					local now = os.clock()
+					if now - (lastRecoveryAt[player] or 0) >= Config.Safety.RecoveryCooldown then
+						lastRecoveryAt[player] = now
+						root.AssemblyLinearVelocity = Vector3.zero
+						root.CFrame = CFrame.new(Config.Navigation.KitchenPosition + Vector3.new(0, 3, 8))
+						player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
+						notify(player, "The abyss returned you to HELL KITCHEN.")
+					end
+				end
+			end
+		end
+
+		task.wait(0.5)
 		if runActive then
 			for _, player in ipairs(Players:GetPlayers()) do
 				local _, humanoid = getCharacterHumanoid(player)
@@ -1355,7 +1471,7 @@ local function directorSnapshot()
 	for _, player in ipairs(Players:GetPlayers()) do
 		local character, humanoid = getCharacterHumanoid(player)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and root and humanoid.Health > 0 then
+		if humanoid and root and humanoid.Health > 0 and not isPlayerProtected(player, root) then
 			living += 1
 			healthTotal += humanoid.Health / math.max(1, humanoid.MaxHealth)
 
@@ -1441,6 +1557,12 @@ task.spawn(function()
 
 		local now = os.clock()
 		local snapshot = directorSnapshot()
+		if snapshot.Living <= 0 then
+			Workspace:SetAttribute("DirectorPressure", Config.Director.MinPressure)
+			Workspace:SetAttribute("DirectorMode", "QUIET")
+			Workspace:SetAttribute("DirectorDemonCap", #demonsFolder:GetChildren())
+			continue
+		end
 		local pressure = calculateDirectorPressure(snapshot)
 		local mode = directorModeFor(pressure)
 

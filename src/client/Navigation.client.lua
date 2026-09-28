@@ -215,7 +215,14 @@ RunService.RenderStepped:Connect(function()
 	targetLabel.Text = string.format("%s  •  %d studs", targetName, math.floor(distance + 0.5))
 
 	local regionName = regionAt(root.Position)
-	regionLabel.Text = regionName
+	local protectedRemaining = math.max(0, (player:GetAttribute("ArrivalProtectedUntil") or 0) - Workspace:GetServerTimeNow())
+	if player:GetAttribute("InSanctuary") == true then
+		regionLabel.Text = "HELL KITCHEN • SANCTUARY"
+	elseif protectedRemaining > 0 then
+		regionLabel.Text = string.format("%s • VEIL %.0fs", regionName, math.ceil(protectedRemaining))
+	else
+		regionLabel.Text = regionName
+	end
 	announceRegion(regionName)
 
 	if hungerRatio <= Config.Navigation.CriticalHungerThreshold / 100 then

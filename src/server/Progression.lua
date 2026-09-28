@@ -5,6 +5,9 @@ local Progression = {}
 local PROFILE_STORE = DataStoreService:GetDataStore("HellFeast_Profile_v2")
 local LEGACY_DNA_STORE = DataStoreService:GetDataStore("HellFeast_DemonDNA_v1")
 
+local SAVE_ATTEMPTS = 3
+local SAVE_RETRY_SECONDS = 0.75
+
 local DEMON_KEYS = {"Imp", "Brute", "Watcher", "FurnaceHound", "Crawler", "Butcher"}
 local PART_KEYS = {"ImpLegs", "BruteArm", "ButcherArm", "WatcherEye", "DemonHorn", "DemonWings", "ClawArm"}
 
@@ -64,6 +67,11 @@ function Progression.Load(player, config)
 		return PROFILE_STORE:GetAsync(tostring(player.UserId))
 	end)
 
+	local profileReadSucceeded = ok and (data == nil or type(data) == "table")
+	player:SetAttribute("ProfileReady", profileReadSucceeded)
+	player:SetAttribute("ProgressionReadOnly", not profileReadSucceeded)
+	player:SetAttribute("SaveFailureCount", 0)
+
 	if ok and type(data) == "table" then
 		loaded = true
 		profile.DemonDNA = tonumber(data.DemonDNA) or 0
@@ -112,10 +120,13 @@ function Progression.Load(player, config)
 		player:SetAttribute("Book_Part_" .. key, profile.Discovery.Parts[key] == true)
 	end
 
-	return profile
+	return profile, profileReadSucceeded
 end
 
 function Progression.Save(player)
+	if player:GetAttribute("ProgressionReadOnly") == true or player:GetAttribute("ProfileReady") ~= true then
+		return false, "Profile load was not confirmed; save blocked to protect existing data."
+	end
 	local demons = {}
 	local parts = {}
 
@@ -144,11 +155,31 @@ function Progression.Save(player)
 		},
 	}
 
-	local ok, err = pcall(function()
-		PROFILE_STORE:SetAsync(tostring(player.UserId), data)
-	end)
+	local lastError
+	for attempt = 1, SAVE_ATTEMPTS do
+		local ok, err = pcall(function()
+			PROFILE_STORE:UpdateAsync(tostring(player.UserId), function()
+				return data
+			end)
+		end)
 
-	return ok, err
+		if ok then
+			player:SetAttribute("SaveFailureCount", 0)
+			player:SetAttribute("LastSaveFailed", false)
+			player:SetAttribute("SaveWarningShown", false)
+			return true
+		end
+
+		lastError = err
+		player:SetAttribute("SaveFailureCount", attempt)
+		player:SetAttribute("LastSaveFailed", true)
+
+		if attempt < SAVE_ATTEMPTS then
+			task.wait(SAVE_RETRY_SECONDS * attempt)
+		end
+	end
+
+	return false, lastError
 end
 
 function Progression.Discover(player, category, key)
@@ -185,6 +216,10 @@ function Progression.GetUpgradeCost(player, config, key)
 end
 
 function Progression.TryUpgrade(player, config, key)
+	if player:GetAttribute("ProgressionReadOnly") == true then
+		return false, "Progression is temporarily read-only on this server."
+	end
+
 	local upgrade = config.Upgrades[key]
 	if not upgrade then
 		return false, "Unknown upgrade."
