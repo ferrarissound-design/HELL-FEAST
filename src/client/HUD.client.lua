@@ -323,10 +323,27 @@ local function refresh()
 	end
 
 	local vote = player:GetAttribute("DecisionVote") or ""
+	local escapeVotes = Workspace:GetAttribute("DecisionEscapeVotes") or 0
+	local descendVotes = Workspace:GetAttribute("DecisionDescendVotes") or 0
+	local eligible = Workspace:GetAttribute("DecisionEligible") or 0
+	local remaining = Workspace:GetAttribute("RunTimeLeft") or 0
+
 	if vote ~= "" then
-		voteStatus.Text = "VOTED: " .. vote
+		voteStatus.Text = string.format(
+			"YOUR VOTE: %s   •   ESCAPE %d  /  DESCEND %d   •   %ds",
+			vote,
+			escapeVotes,
+			descendVotes,
+			math.max(0, math.floor(remaining))
+		)
 	elseif decisionOpen then
-		voteStatus.Text = "No vote defaults to ESCAPE"
+		voteStatus.Text = string.format(
+			"ESCAPE %d  /  DESCEND %d   •   %d voters   •   %ds",
+			escapeVotes,
+			descendVotes,
+			eligible,
+			math.max(0, math.floor(remaining))
+		)
 	else
 		voteStatus.Text = ""
 	end
@@ -340,7 +357,10 @@ for _, attribute in ipairs({
 	player:GetAttributeChangedSignal(attribute):Connect(refresh)
 end
 
-for _, attribute in ipairs({"RunState", "RunTimeLeft", "Circle", "DecisionOpen", "DirectorMode"}) do
+for _, attribute in ipairs({
+	"RunState", "RunTimeLeft", "Circle", "DecisionOpen", "DirectorMode",
+	"DecisionEscapeVotes", "DecisionDescendVotes", "DecisionEligible",
+}) do
 	Workspace:GetAttributeChangedSignal(attribute):Connect(refresh)
 end
 
