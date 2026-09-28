@@ -720,8 +720,8 @@ local function createDemon(demonType, circle, forcedPosition)
 					feedbackAll("BOSS_PHASE", {Phase = 2})
 					task.defer(function()
 						if model.Parent and runActive then
-							createDemon("Imp", circle, body.Position + Vector3.new(-10, 0, 8))
-							createDemon("Imp", circle, body.Position + Vector3.new(10, 0, 8))
+							createDemon("Imp", circle, Vector3.new(body.Position.X - 10, 3, body.Position.Z + 8))
+							createDemon("Imp", circle, Vector3.new(body.Position.X + 10, 3, body.Position.Z + 8))
 						end
 					end)
 				elseif nextPhase == 3 then
@@ -738,7 +738,7 @@ local function createDemon(demonType, circle, forcedPosition)
 					feedbackAll("BOSS_PHASE", {Phase = 3})
 					task.defer(function()
 						if model.Parent and runActive then
-							createDemon("Brute", circle, body.Position + Vector3.new(0, 0, 12))
+							createDemon("Brute", circle, Vector3.new(body.Position.X, 3, body.Position.Z + 12))
 						end
 					end)
 				end
