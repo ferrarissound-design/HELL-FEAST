@@ -58,6 +58,51 @@ local function feedback(player, kind, payload)
 	end
 end
 
+local function feedbackAll(kind, payload)
+	for _, player in ipairs(Players:GetPlayers()) do
+		feedback(player, kind, payload)
+	end
+end
+
+local function damagePlayersInRadius(position, radius, amount, feedbackKind)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local character, humanoid = getCharacterHumanoid(player)
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root and humanoid and humanoid.Health > 0 and (root.Position - position).Magnitude <= radius then
+			humanoid:TakeDamage(amount)
+			if feedbackKind then
+				feedback(player, feedbackKind, {Position = position, Damage = amount})
+			end
+		end
+	end
+end
+
+local function pointSegmentDistance(point, a, b)
+	local ab = b - a
+	local lengthSquared = ab:Dot(ab)
+	if lengthSquared <= 0.001 then
+		return (point - a).Magnitude
+	end
+	local t = math.clamp((point - a):Dot(ab) / lengthSquared, 0, 1)
+	return (point - (a + ab * t)).Magnitude
+end
+
+local function damagePlayersAlongSegment(a, b, width, amount, feedbackKind)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local character, humanoid = getCharacterHumanoid(player)
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root and humanoid and humanoid.Health > 0 then
+			local point = Vector3.new(root.Position.X, a.Y, root.Position.Z)
+			if pointSegmentDistance(point, a, b) <= width then
+				humanoid:TakeDamage(amount)
+				if feedbackKind then
+					feedback(player, feedbackKind, {Position = root.Position, Damage = amount})
+				end
+			end
+		end
+	end
+end
+
 local function notifyAll(text)
 	for _, player in ipairs(Players:GetPlayers()) do
 		notify(player, text)
@@ -633,6 +678,7 @@ local function createDemon(demonType, circle, forcedPosition)
 	task.spawn(function()
 		local lastSlam = os.clock()
 		local lastSpecial = os.clock()
+		model:SetAttribute("AttackBusy", false)
 		while model.Parent and not dead and runActive do
 			local targetPlayer, distance = nearestLivingPlayer(body.Position)
 			if targetPlayer then
@@ -643,7 +689,7 @@ local function createDemon(demonType, circle, forcedPosition)
 					local flatTarget = Vector3.new(targetRoot.Position.X, current.Y, targetRoot.Position.Z)
 					local delta = flatTarget - current
 
-					if delta.Magnitude > 0.01 then
+					if delta.Magnitude > 0.01 and model:GetAttribute("AttackBusy") ~= true then
 						local step = math.min(data.WalkSpeed * 0.12, delta.Magnitude)
 						local nextPosition = current + delta.Unit * step
 						model:PivotTo(CFrame.lookAt(nextPosition, flatTarget))
@@ -651,49 +697,112 @@ local function createDemon(demonType, circle, forcedPosition)
 
 					if distance <= data.AttackRange and os.clock() - lastDemonAttack >= data.AttackCooldown then
 						lastDemonAttack = os.clock()
-						humanoid:TakeDamage(damage)
-						feedback(targetPlayer, "ENEMY_HIT", {Demon = data.DisplayName})
 
-						if demonType == "Brute" and targetRoot then
-							local knock = targetRoot.Position - body.Position
-							if knock.Magnitude > 0.01 then
-								targetRoot.AssemblyLinearVelocity += knock.Unit * 34 + Vector3.new(0, 18, 0)
+						if demonType == "Brute" and model:GetAttribute("AttackBusy") ~= true then
+							model:SetAttribute("AttackBusy", true)
+							local slamPosition = Vector3.new(body.Position.X, targetRoot.Position.Y, body.Position.Z)
+							feedbackAll("TELEGRAPH_CIRCLE", {
+								Position = slamPosition,
+								Radius = 7,
+								Duration = 0.6,
+								Tone = "BRUTE",
+							})
+							task.delay(0.6, function()
+								if model.Parent and runActive then
+									local currentCharacter, currentHumanoid = getCharacterHumanoid(targetPlayer)
+									local currentRoot = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
+									if currentRoot and currentHumanoid and currentHumanoid.Health > 0 and (currentRoot.Position - body.Position).Magnitude <= 7.5 then
+										currentHumanoid:TakeDamage(damage)
+										feedback(targetPlayer, "ENEMY_HIT", {Demon = data.DisplayName})
+										local knock = currentRoot.Position - body.Position
+										if knock.Magnitude > 0.01 then
+											currentRoot.AssemblyLinearVelocity += knock.Unit * 34 + Vector3.new(0, 18, 0)
+										end
+									end
+								end
+								if model.Parent then
+									model:SetAttribute("AttackBusy", false)
+								end
+							end)
+						else
+							humanoid:TakeDamage(damage)
+							feedback(targetPlayer, "ENEMY_HIT", {Demon = data.DisplayName})
+
+							if demonType == "Crawler" then
+								targetPlayer:SetAttribute("Hunger", clampHungerFor(targetPlayer, (targetPlayer:GetAttribute("Hunger") or 0) - 7))
+								notify(targetPlayer, "Bone Crawler tore away your hunger.")
 							end
-						elseif demonType == "Crawler" then
-							targetPlayer:SetAttribute("Hunger", clampHungerFor(targetPlayer, (targetPlayer:GetAttribute("Hunger") or 0) - 7))
-							notify(targetPlayer, "Bone Crawler tore away your hunger.")
 						end
 					end
 
-					if demonType == "Watcher" and distance > 8 and distance <= 30 and os.clock() - lastSpecial >= 4.2 then
+					if demonType == "Watcher" and distance > 8 and distance <= 30 and os.clock() - lastSpecial >= 4.2 and model:GetAttribute("AttackBusy") ~= true then
 						lastSpecial = os.clock()
-						humanoid:TakeDamage(damage * 0.7)
-						feedback(targetPlayer, "WATCHER_BOLT", {Position = body.Position})
-					elseif demonType == "FurnaceHound" and distance > 7 and distance <= 32 and os.clock() - lastSpecial >= 5 then
+						model:SetAttribute("AttackBusy", true)
+						local targetPosition = Vector3.new(targetRoot.Position.X, targetRoot.Position.Y, targetRoot.Position.Z)
+						feedbackAll("TELEGRAPH_CIRCLE", {
+							Position = targetPosition,
+							Radius = 5.5,
+							Duration = 0.75,
+							Tone = "WATCHER",
+						})
+						task.delay(0.75, function()
+							if model.Parent and runActive then
+								damagePlayersInRadius(targetPosition, 5.5, damage * 0.7, "WATCHER_BOLT")
+							end
+							if model.Parent then
+								model:SetAttribute("AttackBusy", false)
+							end
+						end)
+					elseif demonType == "FurnaceHound" and distance > 7 and distance <= 32 and os.clock() - lastSpecial >= 5 and model:GetAttribute("AttackBusy") ~= true then
 						lastSpecial = os.clock()
+						model:SetAttribute("AttackBusy", true)
+						local startPosition = Vector3.new(body.Position.X, targetRoot.Position.Y, body.Position.Z)
 						local charge = flatTarget - body.Position
 						if charge.Magnitude > 0.01 then
-							local chargePosition = body.Position + charge.Unit * math.min(13, charge.Magnitude)
-							model:PivotTo(CFrame.lookAt(chargePosition, flatTarget))
-							if (targetRoot.Position - chargePosition).Magnitude <= 7 then
-								humanoid:TakeDamage(damage * 1.25)
-								feedback(targetPlayer, "HOUND_CHARGE", {Position = body.Position})
-							end
+							local endPosition = startPosition + charge.Unit * math.min(18, charge.Magnitude)
+							feedbackAll("TELEGRAPH_LINE", {
+								Start = startPosition,
+								Finish = endPosition,
+								Width = 4.5,
+								Duration = 0.7,
+								Tone = "HOUND",
+							})
+							task.delay(0.7, function()
+								if model.Parent and runActive then
+									local faceTarget = Vector3.new(endPosition.X, body.Position.Y, endPosition.Z)
+									model:PivotTo(CFrame.lookAt(faceTarget, faceTarget + charge.Unit))
+									damagePlayersAlongSegment(startPosition, endPosition, 4.5, damage * 1.25, "HOUND_CHARGE")
+								end
+								if model.Parent then
+									model:SetAttribute("AttackBusy", false)
+								end
+							end)
+						else
+							model:SetAttribute("AttackBusy", false)
 						end
 					end
 				end
 			end
 
-			if data.IsBoss and os.clock() - lastSlam >= 7 then
+			if data.IsBoss and os.clock() - lastSlam >= 7 and model:GetAttribute("AttackBusy") ~= true then
 				lastSlam = os.clock()
-				for _, player in ipairs(Players:GetPlayers()) do
-					local character, humanoid = getCharacterHumanoid(player)
-					local root = character and character:FindFirstChild("HumanoidRootPart")
-					if root and humanoid and humanoid.Health > 0 and (root.Position - body.Position).Magnitude <= 28 then
-						humanoid:TakeDamage(damage * 0.7)
-						notify(player, "BUTCHER SLAM!")
+				model:SetAttribute("AttackBusy", true)
+				local slamPosition = Vector3.new(body.Position.X, 3, body.Position.Z)
+				feedbackAll("TELEGRAPH_CIRCLE", {
+					Position = slamPosition,
+					Radius = 28,
+					Duration = 1.25,
+					Tone = "BUTCHER",
+				})
+				notifyAll("BUTCHER SLAM • MOVE!")
+				task.delay(1.25, function()
+					if model.Parent and runActive then
+						damagePlayersInRadius(slamPosition, 28, damage * 0.7, "BUTCHER_SLAM")
 					end
-				end
+					if model.Parent then
+						model:SetAttribute("AttackBusy", false)
+					end
+				end)
 			end
 
 			task.wait(0.12)
