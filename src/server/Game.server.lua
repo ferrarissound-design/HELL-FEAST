@@ -589,6 +589,67 @@ local function nearestLivingPlayer(position)
 	return bestPlayer, bestDistance
 end
 
+
+local function rotateFlat(direction, degrees)
+	local radians = math.rad(degrees)
+	local cosine = math.cos(radians)
+	local sine = math.sin(radians)
+	return Vector3.new(
+		direction.X * cosine - direction.Z * sine,
+		0,
+		direction.X * sine + direction.Z * cosine
+	)
+end
+
+local function movementRayParams(model, targetCharacter)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.IgnoreWater = true
+
+	local excluded = {model, demonsFolder, soulsFolder, dropsFolder}
+	if targetCharacter then
+		table.insert(excluded, targetCharacter)
+	end
+	params.FilterDescendantsInstances = excluded
+	return params
+end
+
+local function directionIsClear(model, body, direction, distance, targetCharacter)
+	if direction.Magnitude <= 0.01 then
+		return false
+	end
+
+	local origin = body.Position + Vector3.new(0, math.clamp(body.Size.Y * 0.1, 0.4, 1.2), 0)
+	local result = Workspace:Raycast(origin, direction.Unit * distance, movementRayParams(model, targetCharacter))
+	return result == nil
+end
+
+local function chooseMoveDirection(model, body, desiredDirection, targetCharacter)
+	local desired = Vector3.new(desiredDirection.X, 0, desiredDirection.Z)
+	if desired.Magnitude <= 0.01 then
+		return nil
+	end
+	desired = desired.Unit
+
+	if directionIsClear(model, body, desired, Config.DemonMovement.ObstacleProbeDistance, targetCharacter) then
+		return desired
+	end
+
+	local preferredSign = model:GetAttribute("AvoidSide") or 1
+	local preferred = rotateFlat(desired, Config.DemonMovement.AvoidAngleDegrees * preferredSign)
+	local alternate = rotateFlat(desired, -Config.DemonMovement.AvoidAngleDegrees * preferredSign)
+
+	if directionIsClear(model, body, preferred, Config.DemonMovement.AvoidProbeDistance, targetCharacter) then
+		return preferred.Unit
+	end
+	if directionIsClear(model, body, alternate, Config.DemonMovement.AvoidProbeDistance, targetCharacter) then
+		model:SetAttribute("AvoidSide", -preferredSign)
+		return alternate.Unit
+	end
+
+	return nil
+end
+
 local function dropPart(position, partName)
 	local data = Config.Parts[partName]
 	if not data then
@@ -732,6 +793,7 @@ local function createDemon(demonType, circle, forcedPosition)
 	model:SetAttribute("LastHitUserId", 0)
 	model:SetAttribute("IsBoss", data.IsBoss == true)
 	model:SetAttribute("BossPhase", data.IsBoss and 1 or 0)
+	model:SetAttribute("AvoidSide", math.random(0, 1) == 0 and -1 or 1)
 	model.Parent = demonsFolder
 
 	local body = Instance.new("Part")
@@ -930,8 +992,13 @@ local function createDemon(demonType, circle, forcedPosition)
 							end
 						end
 						local step = math.min(data.WalkSpeed * speedMultiplier * 0.12, delta.Magnitude)
-						local nextPosition = current + delta.Unit * step
-						model:PivotTo(CFrame.lookAt(nextPosition, flatTarget))
+						local moveDirection = chooseMoveDirection(model, body, delta, character)
+						if moveDirection then
+							local nextPosition = current + moveDirection * step
+							model:PivotTo(CFrame.lookAt(nextPosition, nextPosition + moveDirection))
+						else
+							model:PivotTo(CFrame.lookAt(current, flatTarget))
+						end
 					end
 
 					if distance <= data.AttackRange and os.clock() - lastDemonAttack >= data.AttackCooldown then
