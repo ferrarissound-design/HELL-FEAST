@@ -52,8 +52,10 @@ local lastDashAt = {}
 local hazardTouchAt = {}
 local lastRecoveryAt = {}
 local lastSanctuaryNoticeAt = {}
+local remoteLastAt = {}
 local votes = {}
 local decisionEligible = {}
+local decisionStartedAt = nil
 
 Workspace:SetAttribute("BuildId", Config.BuildId)
 Workspace:SetAttribute("RunState", "BOOTING")
@@ -65,6 +67,10 @@ Workspace:SetAttribute("DecisionEscapeVotes", 0)
 Workspace:SetAttribute("DecisionDescendVotes", 0)
 Workspace:SetAttribute("DecisionVoted", 0)
 Workspace:SetAttribute("DecisionEligible", 0)
+Workspace:SetAttribute("WatchdogStatus", "OK")
+Workspace:SetAttribute("WatchdogRecoveries", 0)
+Workspace:SetAttribute("WatchdogLastRecovery", "")
+Workspace:SetAttribute("SecurityRejects", 0)
 
 local function notify(player, text)
 	notifyRemote:FireClient(player, text)
@@ -162,6 +168,46 @@ isPlayerProtected = function(player, root)
 	return Workspace:GetServerTimeNow() < (player:GetAttribute("ArrivalProtectedUntil") or 0)
 end
 
+
+local function finiteNumber(value)
+	return type(value) == "number"
+		and value == value
+		and value > -math.huge
+		and value < math.huge
+end
+
+local function rejectRemote(player, remoteName)
+	local rejects = (player:GetAttribute("SecurityRejects") or 0) + 1
+	player:SetAttribute("SecurityRejects", rejects)
+	Workspace:SetAttribute("SecurityRejects", (Workspace:GetAttribute("SecurityRejects") or 0) + 1)
+
+	if RunService:IsStudio() and rejects <= 5 then
+		warn(string.format("[HELL FEAST SECURITY] rejected %s from %s", remoteName, player.Name))
+	end
+end
+
+local function allowRemote(player, key, minInterval)
+	if not player or player.Parent ~= Players then
+		return false
+	end
+
+	local now = os.clock()
+	local state = remoteLastAt[player]
+	if not state then
+		state = {}
+		remoteLastAt[player] = state
+	end
+
+	local last = state[key] or 0
+	if now - last < minInterval then
+		rejectRemote(player, key .. ":rate")
+		return false
+	end
+
+	state[key] = now
+	return true
+end
+
 local function connectHazard(hazard)
 	if not hazard:IsA("BasePart") then
 		return
@@ -215,7 +261,23 @@ end
 
 
 dashRemote.OnServerEvent:Connect(function(player, requestedDirection)
+	if not allowRemote(player, "Dash", Config.Security.DashRemoteMinInterval) then
+		return
+	end
 	if not runActive then
+		return
+	end
+	if typeof(requestedDirection) ~= "Vector3"
+		or not finiteNumber(requestedDirection.X)
+		or not finiteNumber(requestedDirection.Y)
+		or not finiteNumber(requestedDirection.Z) then
+		rejectRemote(player, "Dash:payload")
+		return
+	end
+
+	local magnitude = requestedDirection.Magnitude
+	if magnitude < 0.05 or magnitude > Config.Security.MaxClientDirectionMagnitude then
+		rejectRemote(player, "Dash:magnitude")
 		return
 	end
 
@@ -236,15 +298,9 @@ dashRemote.OnServerEvent:Connect(function(player, requestedDirection)
 		return
 	end
 
-	local direction
-	if typeof(requestedDirection) == "Vector3" then
-		direction = Vector3.new(requestedDirection.X, 0, requestedDirection.Z)
-	end
-	if not direction or direction.Magnitude < 0.1 then
-		local look = root.CFrame.LookVector
-		direction = Vector3.new(look.X, 0, look.Z)
-	end
-	if direction.Magnitude < 0.1 then
+	local direction = Vector3.new(requestedDirection.X, 0, requestedDirection.Z)
+	if direction.Magnitude < 0.05 then
+		rejectRemote(player, "Dash:flat")
 		return
 	end
 
@@ -1333,16 +1389,19 @@ local function updateDecisionTallies()
 end
 
 decisionVoteRemote.OnServerEvent:Connect(function(player, choice)
+	if not allowRemote(player, "DecisionVote", Config.Security.DecisionRemoteMinInterval) then
+		return
+	end
+	if type(choice) ~= "string" or (choice ~= "ESCAPE" and choice ~= "DESCEND") then
+		rejectRemote(player, "DecisionVote:payload")
+		return
+	end
 	if not decisionOpen then
 		return
 	end
 
 	if decisionEligible[player.UserId] ~= true then
 		notify(player, "Decision already underway • you will follow the group.")
-		return
-	end
-
-	if choice ~= "ESCAPE" and choice ~= "DESCEND" then
 		return
 	end
 
@@ -1498,6 +1557,7 @@ Players.PlayerRemoving:Connect(function(player)
 	hazardTouchAt[player] = nil
 	lastRecoveryAt[player] = nil
 	lastSanctuaryNoticeAt[player] = nil
+	remoteLastAt[player] = nil
 	votes[player.UserId] = nil
 	decisionEligible[player.UserId] = nil
 	if decisionOpen then
