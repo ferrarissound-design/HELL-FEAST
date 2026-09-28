@@ -67,7 +67,7 @@ function Progression.Load(player, config)
 		return PROFILE_STORE:GetAsync(tostring(player.UserId))
 	end)
 
-	local profileReadSucceeded = ok
+	local profileReadSucceeded = ok and (data == nil or type(data) == "table")
 	player:SetAttribute("ProfileReady", profileReadSucceeded)
 	player:SetAttribute("ProgressionReadOnly", not profileReadSucceeded)
 	player:SetAttribute("SaveFailureCount", 0)
