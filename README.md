@@ -140,6 +140,20 @@ The playable build now also includes:
 - Bone Crawler hunger attacks
 - graft and cooking screen feedback
 
+## Environmental polish
+
+The generated world now has a stronger atmosphere without relying on custom art assets:
+
+- Circle-specific color grading, haze and bloom
+- HELL KITCHEN fire, smoke and local light
+- glowing cooking stations
+- pulsing Lost Soul highlights
+- lightweight local ash motes
+- demon death shard bursts
+- Lost Soul capture effects
+
+These effects are deliberately lightweight and keep combat telegraphs readable on mobile.
+
 ## Adaptive Hell Director
 
 Normal-circle pacing is now controlled by a lightweight server-side Director instead of a fixed spawn timer.
