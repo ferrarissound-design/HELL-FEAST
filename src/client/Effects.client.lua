@@ -160,8 +160,9 @@ local function showBossPhase(phase)
 	end)
 end
 
-local function flashDamage(strength)
+local function flashDamage(strength, color)
 	strength = strength or 0.28
+	damageFlash.BackgroundColor3 = color or Color3.fromRGB(170, 15, 25)
 	if player:GetAttribute("ReducedFlashes") == true then
 		strength *= 0.35
 	end
@@ -364,11 +365,7 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 	elseif kind == "HOUND_CHARGE" then
 		flashDamage(0.44)
 	elseif kind == "ENVIRONMENT_HIT" then
-		damageFlash.BackgroundColor3 = Color3.fromRGB(235, 85, 25)
-		flashDamage(0.34)
-		task.delay(0.25, function()
-			damageFlash.BackgroundColor3 = Color3.fromRGB(170, 15, 25)
-		end)
+		flashDamage(0.34, Color3.fromRGB(235, 85, 25))
 	elseif kind == "ENEMY_HIT" then
 		flashDamage(0.26)
 	elseif kind == "BOSS_PHASE" then
