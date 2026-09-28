@@ -1,6 +1,6 @@
 local Config = {}
 
-Config.BuildId = "HF-RC-20260929-05"
+Config.BuildId = "HF-RC-20260929-06"
 
 Config.RunDuration = 10 * 60
 Config.BossWindow = 90
@@ -159,6 +159,7 @@ Config.Security = {
 	DecisionRemoteMinInterval = 0.15,
 	DebugRemoteMinInterval = 0.06,
 	MaxClientDirectionMagnitude = 1.5,
+	PromptDistancePadding = 3,
 }
 
 Config.Watchdog = {
