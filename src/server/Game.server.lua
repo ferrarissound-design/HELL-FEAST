@@ -55,6 +55,7 @@ local lastSanctuaryNoticeAt = {}
 local votes = {}
 local decisionEligible = {}
 
+Workspace:SetAttribute("BuildId", Config.BuildId)
 Workspace:SetAttribute("RunState", "BOOTING")
 Workspace:SetAttribute("RunTimeLeft", Config.RunDuration)
 Workspace:SetAttribute("Circle", 1)
@@ -1829,6 +1830,38 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 			notify(player, "DEBUG • forced Butcher Phase III.")
 		else
 			notify(player, "DEBUG • spawn THE BUTCHER first.")
+		end
+	elseif action == "BOSS_1HP" then
+		local boss = findBoss()
+		if boss then
+			boss:SetAttribute("Health", 1)
+			notify(player, "DEBUG • THE BUTCHER set to 1 HP.")
+		else
+			notify(player, "DEBUG • spawn THE BUTCHER first.")
+		end
+	elseif action == "LOW_HUNGER" then
+		player:SetAttribute("Hunger", clampHungerFor(player, 10))
+		player:SetAttribute("StarveTime", 0)
+		notify(player, "DEBUG • Hunger set to 10.")
+	elseif action == "KILL_SELF" then
+		local _, humanoid = getCharacterHumanoid(player)
+		if humanoid and humanoid.Health > 0 then
+			humanoid.Health = 0
+		end
+	elseif action == "OOB_TEST" then
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root then
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.CFrame = CFrame.new(0, Config.Safety.RecoveryMinY - 14, 0)
+			notify(player, "DEBUG • moved below recovery threshold.")
+		end
+	elseif action == "SAVE_NOW" then
+		local ok, err = Progression.Save(player)
+		if ok then
+			notify(player, "DEBUG • profile save succeeded.")
+		else
+			notify(player, "DEBUG • profile save blocked/failed: " .. tostring(err))
 		end
 	elseif action == "CIRCLE" and type(payload) == "number" then
 		currentCircle = math.clamp(math.floor(payload), 1, Config.MaxCircle)
