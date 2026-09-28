@@ -28,6 +28,10 @@ local decisionVoteRemote = remotes:FindFirstChild("DecisionVote") or Instance.ne
 decisionVoteRemote.Name = "DecisionVote"
 decisionVoteRemote.Parent = remotes
 
+local feedbackRemote = remotes:FindFirstChild("Feedback") or Instance.new("RemoteEvent")
+feedbackRemote.Name = "Feedback"
+feedbackRemote.Parent = remotes
+
 local runActive = false
 local decisionOpen = false
 local currentRunId = 0
@@ -44,6 +48,12 @@ Workspace:SetAttribute("DecisionOpen", false)
 
 local function notify(player, text)
 	notifyRemote:FireClient(player, text)
+end
+
+local function feedback(player, kind, payload)
+	if player then
+		feedbackRemote:FireClient(player, kind, payload or {})
+	end
 end
 
 local function notifyAll(text)
@@ -216,6 +226,7 @@ local function equipPart(player, partName)
 	else
 		notify(player, data.DisplayName .. " grafted onto your body.")
 	end
+	feedback(player, "GRAFT", {Name = data.DisplayName, Slot = data.Slot})
 end
 
 local function savePlayer(player)
@@ -296,6 +307,11 @@ local function giveWeapon(player)
 			local damage = Config.Combat.BaseDamage * multiplier
 			nearest:SetAttribute("LastHitUserId", player.UserId)
 			nearest:SetAttribute("Health", math.max(0, (nearest:GetAttribute("Health") or 0) - damage))
+			feedback(player, "HIT", {
+				Damage = math.floor(damage + 0.5),
+				Position = nearest.PrimaryPart and nearest.PrimaryPart.Position or root.Position,
+				IsBoss = nearest:GetAttribute("IsBoss") == true,
+			})
 		end
 	end)
 end
@@ -488,6 +504,7 @@ local function createDemon(demonType, circle, forcedPosition)
 			local dnaGain = math.max(1, math.floor((data.DNA or 1) * dnaMultiplier))
 			killer:SetAttribute("RunDNA", (killer:GetAttribute("RunDNA") or 0) + dnaGain)
 			notify(killer, string.format("+%d unbanked Demon DNA", dnaGain))
+			feedback(killer, "KILL", {Demon = data.DisplayName, DNA = dnaGain, IsBoss = data.IsBoss == true})
 		end
 
 		local dropName = data.PartDrop
@@ -510,6 +527,7 @@ local function createDemon(demonType, circle, forcedPosition)
 
 	task.spawn(function()
 		local lastSlam = os.clock()
+		local lastSpecial = os.clock()
 		while model.Parent and not dead and runActive do
 			local targetPlayer, distance = nearestLivingPlayer(body.Position)
 			if targetPlayer then
@@ -529,6 +547,34 @@ local function createDemon(demonType, circle, forcedPosition)
 					if distance <= data.AttackRange and os.clock() - lastDemonAttack >= data.AttackCooldown then
 						lastDemonAttack = os.clock()
 						humanoid:TakeDamage(damage)
+						feedback(targetPlayer, "ENEMY_HIT", {Demon = data.DisplayName})
+
+						if demonType == "Brute" and targetRoot then
+							local knock = targetRoot.Position - body.Position
+							if knock.Magnitude > 0.01 then
+								targetRoot.AssemblyLinearVelocity += knock.Unit * 34 + Vector3.new(0, 18, 0)
+							end
+						elseif demonType == "Crawler" then
+							targetPlayer:SetAttribute("Hunger", clampHungerFor(targetPlayer, (targetPlayer:GetAttribute("Hunger") or 0) - 7))
+							notify(targetPlayer, "Bone Crawler tore away your hunger.")
+						end
+					end
+
+					if demonType == "Watcher" and distance > 8 and distance <= 30 and os.clock() - lastSpecial >= 4.2 then
+						lastSpecial = os.clock()
+						humanoid:TakeDamage(damage * 0.7)
+						feedback(targetPlayer, "WATCHER_BOLT", {Position = body.Position})
+					elseif demonType == "FurnaceHound" and distance > 7 and distance <= 32 and os.clock() - lastSpecial >= 5 then
+						lastSpecial = os.clock()
+						local charge = flatTarget - body.Position
+						if charge.Magnitude > 0.01 then
+							local chargePosition = body.Position + charge.Unit * math.min(13, charge.Magnitude)
+							model:PivotTo(CFrame.lookAt(chargePosition, flatTarget))
+							if (targetRoot.Position - chargePosition).Magnitude <= 7 then
+								humanoid:TakeDamage(damage * 1.25)
+								feedback(targetPlayer, "HOUND_CHARGE", {Position = body.Position})
+							end
+						end
 					end
 				end
 			end
@@ -624,7 +670,9 @@ local function cook(player, recipeName)
 		player:SetAttribute("SlowHungerUntil", Workspace:GetServerTimeNow() + recipe.SlowHungerSeconds)
 	end
 
+	player:SetAttribute("CookedCount", (player:GetAttribute("CookedCount") or 0) + 1)
 	notify(player, recipe.DisplayName .. " eaten.")
+	feedback(player, "COOK", {Name = recipe.DisplayName})
 end
 
 for _, station in ipairs(stationsFolder:GetChildren()) do
@@ -678,6 +726,7 @@ local function resetPlayerForNewRun(player)
 	player:SetAttribute("Souls", 0)
 	player:SetAttribute("Kills", 0)
 	player:SetAttribute("RunDNA", 0)
+	player:SetAttribute("CookedCount", 0)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
 	player:SetAttribute("DecisionVote", "")
@@ -707,6 +756,7 @@ local function setupPlayer(player)
 	player:SetAttribute("Souls", 0)
 	player:SetAttribute("Kills", 0)
 	player:SetAttribute("RunDNA", 0)
+	player:SetAttribute("CookedCount", 0)
 	player:SetAttribute("DamageMultiplier", 1)
 	player:SetAttribute("HungerMultiplier", 1)
 	player:SetAttribute("SlowHungerUntil", 0)
@@ -914,6 +964,9 @@ local function runCircle()
 			Workspace:SetAttribute("RunState", "BOSS")
 			Workspace:SetAttribute("BossAlive", true)
 			notifyAll("THE BUTCHER ENTERS THE SLAUGHTER PIT.")
+			for _, player in ipairs(Players:GetPlayers()) do
+				feedback(player, "BOSS_SPAWN", {Circle = currentCircle})
+			end
 			createDemon("Butcher", currentCircle, Vector3.new(0, 6, -108))
 		end
 
