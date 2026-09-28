@@ -6,7 +6,9 @@ local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
-local dashRemote = ReplicatedStorage:WaitForChild("HellFeastRemotes"):WaitForChild("Dash")
+local remotes = ReplicatedStorage:WaitForChild("HellFeastRemotes")
+local dashRemote = remotes:WaitForChild("Dash")
+local feedbackRemote = remotes:WaitForChild("Feedback")
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "HellFeastDash"
@@ -53,6 +55,7 @@ hint.Parent = gui
 hint.Visible = not UserInputService.TouchEnabled
 
 local readyAt = 0
+local requestPendingUntil = 0
 local localCooldown = Config.Movement.DashCooldown
 
 local function getDirection()
@@ -116,7 +119,7 @@ local function tryDash()
 	end
 
 	local now = os.clock()
-	if now < readyAt then
+	if now < readyAt or now < requestPendingUntil then
 		return
 	end
 
@@ -136,8 +139,17 @@ local function tryDash()
 		return
 	end
 
-	readyAt = now + localCooldown
+	requestPendingUntil = now + 0.35
 	dashRemote:FireServer(direction)
+end
+
+feedbackRemote.OnClientEvent:Connect(function(kind, payload)
+	if kind ~= "DASH" then
+		return
+	end
+
+	requestPendingUntil = 0
+	readyAt = os.clock() + (tonumber(payload and payload.Cooldown) or localCooldown)
 	cameraKick()
 
 	local restSize = button.Size
@@ -151,7 +163,7 @@ local function tryDash()
 	TweenService:Create(button, TweenInfo.new(0.14, Enum.EasingStyle.Back), {
 		Size = restSize,
 	}):Play()
-end
+end)
 
 button.Activated:Connect(tryDash)
 
@@ -169,10 +181,15 @@ end)
 
 task.spawn(function()
 	while gui.Parent do
-		local remaining = readyAt - os.clock()
+		local now = os.clock()
+		local remaining = readyAt - now
 		if not combatActive() then
 			button.Text = "WAIT"
 			button.BackgroundTransparency = 0.42
+			button.AutoButtonColor = false
+		elseif now < requestPendingUntil then
+			button.Text = "..."
+			button.BackgroundTransparency = 0.24
 			button.AutoButtonColor = false
 		elseif remaining > 0 then
 			button.Text = string.format("%.1f", remaining)
