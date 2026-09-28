@@ -1860,6 +1860,9 @@ local DEBUG_ACTIONS = {
 	TP_KITCHEN = true,
 	TP_BOSS = true,
 	CLEAR = true,
+	WD_DROP_BOSS = true,
+	WD_EMPTY_RUN = true,
+	WD_STALE_DECISION = true,
 }
 
 debugRemote.OnServerEvent:Connect(function(player, action, payload)
@@ -1997,6 +2000,29 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 		clearRunEntities(true)
 		Workspace:SetAttribute("BossAlive", false)
 		notify(player, "DEBUG • entities cleared.")
+	elseif action == "WD_DROP_BOSS" then
+		local boss = findBoss()
+		if boss and Workspace:GetAttribute("RunState") == "BOSS" then
+			boss:Destroy()
+			Workspace:SetAttribute("BossAlive", true)
+			notify(player, "DEBUG • boss removed; watchdog should restore it.")
+		else
+			notify(player, "DEBUG • enter a boss fight first.")
+		end
+	elseif action == "WD_EMPTY_RUN" then
+		if runActive and Workspace:GetAttribute("RunState") == "HELL RUN" then
+			clearFolder(demonsFolder)
+			notify(player, "DEBUG • active hunt emptied; watchdog should restore it.")
+		else
+			notify(player, "DEBUG • use during HELL RUN.")
+		end
+	elseif action == "WD_STALE_DECISION" then
+		if decisionOpen and decisionStartedAt then
+			decisionStartedAt = os.clock() - Config.DecisionDuration - Config.Watchdog.DecisionOvertimeSeconds - 1
+			notify(player, "DEBUG • decision marked overdue; watchdog should resolve it safely.")
+		else
+			notify(player, "DEBUG • open ESCAPE / DESCEND first.")
+		end
 	end
 end)
 
