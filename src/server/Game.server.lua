@@ -1123,12 +1123,14 @@ local function createDemon(demonType, circle, forcedPosition)
 						end
 					end
 
+					local performedMeleeThisTick = false
 					if distance <= data.AttackRange
 						and attackPathClear
 						and os.clock() - lastDemonAttack >= data.AttackCooldown
 						and model:GetAttribute("AttackBusy") ~= true then
 
 						lastDemonAttack = os.clock()
+						performedMeleeThisTick = true
 
 						if demonType == "Brute" then
 							model:SetAttribute("AttackBusy", true)
@@ -1234,7 +1236,7 @@ local function createDemon(demonType, circle, forcedPosition)
 				end
 			end
 
-			if data.IsBoss and targetPlayer then
+			if data.IsBoss and targetPlayer and not performedMeleeThisTick then
 				local phase = model:GetAttribute("BossPhase") or 1
 				local slamCooldown = 7
 				local slamRadius = 28
