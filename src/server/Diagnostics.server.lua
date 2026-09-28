@@ -51,6 +51,10 @@ for recipeKey, recipe in pairs(Config.Recipes) do
 	check(type(recipe.HungerRestore) == "number" and recipe.HungerRestore >= 0, recipeKey .. " has valid hunger restore")
 end
 
+check(type(Config.Combat.AssistAngleDegrees) == "number" and Config.Combat.AssistAngleDegrees > 0 and Config.Combat.AssistAngleDegrees <= 180, "melee assist angle is valid")
+check(type(Config.Combat.CloseAssistRange) == "number" and Config.Combat.CloseAssistRange > 0 and Config.Combat.CloseAssistRange <= Config.Combat.AttackRange, "melee close-assist range is valid")
+check(type(Config.Combat.AttackLungeSpeed) == "number" and Config.Combat.AttackLungeSpeed >= 0, "melee lunge speed is valid")
+
 check(type(Config.Director.TickSeconds) == "number" and Config.Director.TickSeconds > 0, "Hell Director tick is valid")
 check(Config.Director.SpawnIntervalFast < Config.Director.SpawnIntervalSlow, "Hell Director spawn interval range is ordered")
 check(Config.Director.MinPressure < Config.Director.MaxPressure, "Hell Director pressure range is ordered")
