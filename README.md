@@ -175,6 +175,19 @@ It considers current Circle, run progress, living player count, health, hunger a
 
 The HUD exposes only the atmospheric state **QUIET / STALK / HUNT**, not the underlying assistance math.
 
+## Release safety
+
+Public-session safeguards now protect the parts most likely to create a bad first impression or progression loss:
+
+- HELL KITCHEN is a real **SANCTUARY**: demons will not target protected players there and non-boss demons are pushed back outside its marked boundary
+- weapons are sealed inside SANCTUARY so the safe zone cannot be used to attack enemies for free
+- fresh runs return players to HELL KITCHEN
+- joining / respawning grants a short arrival veil before demons can target the player
+- falling below the map or leaving the arena automatically returns the player to HELL KITCHEN
+- profile load failures switch permanent progression into read-only mode instead of saving default data over an unknown profile
+- saves retry before reporting failure
+- the HUD clearly shows **SAVE READ-ONLY** when permanent progression is unavailable
+
 ## Studio playtest tools
 
 When running inside Roblox Studio, a **DEV PANEL** is available for rapid QA. It can restore health/hunger, grant Souls, equip grafts, spawn each demon, jump directly into THE BUTCHER, force boss phases, switch circles, teleport between key locations, and clear spawned entities.
