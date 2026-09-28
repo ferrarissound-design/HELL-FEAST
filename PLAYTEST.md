@@ -90,12 +90,21 @@ Verify in each Circle:
 
 ## Mobile check
 
-Use Roblox Studio device emulation and verify:
+Use Roblox Studio device emulation in at least one phone landscape size and one tablet size.
 
-- HUD does not cover the center of the screen
-- DASH button is reachable
-- HELL BOOK is reachable
+Verify:
+
+- HUD automatically shrinks on short / narrow viewports
+- top navigation moves below the compact HUD instead of overlapping it
+- DASH sits above the standard mobile controls and remains reachable
+- keyboard-only dash hint is hidden on touch devices
+- HELL BOOK button and book pages remain reachable
+- result screen fits without hiding its return button
 - ESCAPE / DESCEND buttons fit
+- equip the Rusty Cleaver and confirm the intended nearby demon gets an outline
+- attack near two demons and verify facing direction influences the selected target
+- short melee lunge helps connect attacks without pulling the player a large distance
+- ash / death effects are visibly lighter on touch devices
 - DEV PANEL is usable during Studio testing
 - interaction prompts are readable
 

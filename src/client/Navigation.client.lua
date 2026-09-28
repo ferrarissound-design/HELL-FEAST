@@ -15,6 +15,7 @@ gui.DisplayOrder = 10
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local nav = Instance.new("Frame")
+nav.Name = "NavigationPanel"
 nav.AnchorPoint = Vector2.new(0.5, 0)
 nav.Position = UDim2.new(0.5, 0, 0, 12)
 nav.Size = UDim2.fromOffset(260, 72)
@@ -65,6 +66,7 @@ regionLabel.TextXAlignment = Enum.TextXAlignment.Left
 regionLabel.Parent = nav
 
 local hungerAlert = Instance.new("TextLabel")
+hungerAlert.Name = "HungerAlert"
 hungerAlert.AnchorPoint = Vector2.new(0.5, 0)
 hungerAlert.Position = UDim2.new(0.5, 0, 0, 90)
 hungerAlert.Size = UDim2.fromOffset(290, 44)
@@ -84,6 +86,7 @@ alertCorner.CornerRadius = UDim.new(0, 12)
 alertCorner.Parent = hungerAlert
 
 local zoneBanner = Instance.new("TextLabel")
+zoneBanner.Name = "ZoneBanner"
 zoneBanner.AnchorPoint = Vector2.new(0.5, 0.5)
 zoneBanner.Position = UDim2.fromScale(0.5, 0.26)
 zoneBanner.Size = UDim2.fromOffset(360, 64)

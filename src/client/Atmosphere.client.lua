@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
@@ -13,7 +14,18 @@ localFolder.Name = "HellFeastLocalAtmosphere"
 localFolder.Parent = Workspace
 
 local activeMotes = 0
+local lowFx = false
 local maxMotes = 20
+
+local function updateQuality()
+	local camera = Workspace.CurrentCamera
+	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+	lowFx = UserInputService.TouchEnabled or viewport.Y < 520 or viewport.X < 800
+	maxMotes = lowFx and 8 or 20
+	player:SetAttribute("LowFX", lowFx)
+end
+
+updateQuality()
 
 local function shardColor(demonType)
 	local colors = {
@@ -69,7 +81,7 @@ local function demonDeath(payload)
 	end
 
 	local boss = payload.IsBoss == true
-	local count = boss and 18 or 7
+	local count = lowFx and (boss and 9 or 4) or (boss and 18 or 7)
 	local scale = boss and 1.7 or 1
 	local color = shardColor(payload.DemonType)
 
@@ -197,28 +209,29 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 end)
 
 
-RunService.RenderStepped:Connect(function()
-	local world = Workspace:FindFirstChild("HellFeastWorld")
-	local souls = world and world:FindFirstChild("LostSouls")
-	if not souls then
-		return
-	end
+task.spawn(function()
+	while localFolder.Parent do
+		local world = Workspace:FindFirstChild("HellFeastWorld")
+		local souls = world and world:FindFirstChild("LostSouls")
+		if souls then
+			local now = Workspace:GetServerTimeNow()
+			for index, soul in ipairs(souls:GetChildren()) do
+				local root = soul.PrimaryPart
+				local light = root and root:FindFirstChild("SoulLight")
+				if light and light:IsA("PointLight") then
+					local wave = math.sin(now * 2.4 + index * 0.85)
+					light.Brightness = 1.35 + wave * 0.35
+					light.Range = 13 + wave * 1.8
+				end
 
-	local now = Workspace:GetServerTimeNow()
-	for index, soul in ipairs(souls:GetChildren()) do
-		local root = soul.PrimaryPart
-		local light = root and root:FindFirstChild("SoulLight")
-		if light and light:IsA("PointLight") then
-			local wave = math.sin(now * 2.4 + index * 0.85)
-			light.Brightness = 1.35 + wave * 0.35
-			light.Range = 13 + wave * 1.8
+				local highlight = soul:FindFirstChild("SoulHighlight")
+				if highlight and highlight:IsA("Highlight") then
+					local wave = math.sin(now * 1.8 + index * 0.7)
+					highlight.FillTransparency = 0.60 + wave * 0.08
+				end
+			end
 		end
-
-		local highlight = soul:FindFirstChild("SoulHighlight")
-		if highlight and highlight:IsA("Highlight") then
-			local wave = math.sin(now * 1.8 + index * 0.7)
-			highlight.FillTransparency = 0.60 + wave * 0.08
-		end
+		task.wait(lowFx and 0.16 or 0.08)
 	end
 end)
 
@@ -235,9 +248,24 @@ task.spawn(function()
 			interval = 0.65
 		end
 		interval = math.max(0.18, interval - (circle - 1) * 0.06)
+		if lowFx then
+			interval *= 1.8
+		end
 		task.wait(interval)
 	end
 end)
+
+local function bindCamera(camera)
+	if camera then
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateQuality)
+	end
+end
+
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	bindCamera(Workspace.CurrentCamera)
+	updateQuality()
+end)
+bindCamera(Workspace.CurrentCamera)
 
 player.AncestryChanged:Connect(function(_, parent)
 	if not parent and localFolder.Parent then

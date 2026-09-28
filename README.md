@@ -140,6 +140,19 @@ The playable build now also includes:
 - Bone Crawler hunger attacks
 - graft and cooking screen feedback
 
+## Mobile-first polish
+
+The client now adapts to smaller screens instead of assuming a desktop viewport:
+
+- responsive HUD, navigation, boss bar, HELL BOOK and results scaling
+- mobile DASH placement above standard touch controls
+- keyboard-only hints hidden on touch
+- directional melee target assist
+- subtle local target outline while the Rusty Cleaver is equipped
+- short attack lunge to reduce frustrating mobile whiffs
+- automatic low-FX mode on touch / small viewports
+- reduced ash, death shards and Lost Soul update frequency on lower-power layouts
+
 ## Environmental polish
 
 The generated world now has a stronger atmosphere without relying on custom art assets:

@@ -19,6 +19,10 @@ Config.Combat = {
 	BaseDamage = 28,
 	AttackRange = 9,
 	AttackCooldown = 0.55,
+	AssistAngleDegrees = 105,
+	CloseAssistRange = 5.5,
+	AssistFacingWeight = 4.0,
+	AttackLungeSpeed = 10,
 }
 
 Config.Movement = {

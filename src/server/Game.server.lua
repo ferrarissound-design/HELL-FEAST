@@ -439,19 +439,51 @@ local function giveWeapon(player)
 		end
 
 		local nearest
-		local nearestDistance = Config.Combat.AttackRange
+		local nearestScore = math.huge
+		local rootForward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+		if rootForward.Magnitude > 0.01 then
+			rootForward = rootForward.Unit
+		end
+		local assistDot = math.cos(math.rad(Config.Combat.AssistAngleDegrees * 0.5))
+
 		for _, demon in ipairs(demonsFolder:GetChildren()) do
 			local body = demon.PrimaryPart
 			if body and (demon:GetAttribute("Health") or 0) > 0 then
-				local distance = (body.Position - root.Position).Magnitude
-				if distance <= nearestDistance then
-					nearest = demon
-					nearestDistance = distance
+				local offset = body.Position - root.Position
+				local distance = offset.Magnitude
+				if distance <= Config.Combat.AttackRange then
+					local flat = Vector3.new(offset.X, 0, offset.Z)
+					local facing = 1
+					if flat.Magnitude > 0.01 and rootForward.Magnitude > 0.01 then
+						facing = rootForward:Dot(flat.Unit)
+					end
+
+					local eligible = distance <= Config.Combat.CloseAssistRange or facing >= assistDot
+					if eligible then
+						local score = distance + (1 - facing) * Config.Combat.AssistFacingWeight
+						if score < nearestScore then
+							nearest = demon
+							nearestScore = score
+						end
+					end
 				end
 			end
 		end
 
 		if nearest then
+			local targetBody = nearest.PrimaryPart
+			if targetBody then
+				local flatTarget = Vector3.new(targetBody.Position.X, root.Position.Y, targetBody.Position.Z)
+				local direction = flatTarget - root.Position
+				if direction.Magnitude > 0.05 then
+					root.CFrame = CFrame.lookAt(root.Position, flatTarget)
+					local horizontalVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+					if horizontalVelocity.Magnitude < Config.Combat.AttackLungeSpeed then
+						root.AssemblyLinearVelocity += direction.Unit * Config.Combat.AttackLungeSpeed
+					end
+				end
+			end
+
 			local multiplier = player:GetAttribute("DamageMultiplier") or 1
 			local damage = Config.Combat.BaseDamage * multiplier
 			nearest:SetAttribute("LastHitUserId", player.UserId)
