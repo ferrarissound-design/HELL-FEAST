@@ -83,6 +83,21 @@ During a run:
 
 Rejoin Play mode and verify persistent records when Studio DataStore access is enabled.
 
+## Demon movement / obstacle test
+
+Use the DEV PANEL to spawn several enemy types near real map geometry.
+
+Verify:
+
+- demons steer around charred trees instead of moving straight through trunks
+- Brutes steer around Bone Yard pillars
+- enemies route around Soul Cage bars rather than clipping directly through them
+- enemies do not treat their target player's character as a wall
+- multiple demons can still converge on a player without freezing each other
+- demons that cannot find a clear left or right step pause / face the player instead of teleporting through an obstacle
+- sanctuary pushback still works with obstacle steering enabled
+- THE BUTCHER remains able to move normally inside the open SLAUGHTER PIT
+
 ## Visual atmosphere check
 
 Verify in each Circle:
