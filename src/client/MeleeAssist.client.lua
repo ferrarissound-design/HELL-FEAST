@@ -21,6 +21,25 @@ local function cleaverEquipped()
 	return character and character:FindFirstChild("Rusty Cleaver") ~= nil
 end
 
+local function hasLineOfSight(character, targetModel, root, targetBody)
+	local origin = root.Position + Vector3.new(0, 0.6, 0)
+	local delta = targetBody.Position - origin
+	if delta.Magnitude <= 0.05 then
+		return true
+	end
+
+	local world = Workspace:FindFirstChild("HellFeastWorld")
+	local souls = world and world:FindFirstChild("LostSouls")
+	local drops = world and world:FindFirstChild("Drops")
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.IgnoreWater = true
+	params.FilterDescendantsInstances = {character, souls, drops}
+
+	local result = Workspace:Raycast(origin, delta, params)
+	return result == nil or result.Instance:IsDescendantOf(targetModel)
+end
+
 local function bestTarget()
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -55,7 +74,8 @@ local function bestTarget()
 					facing = forward:Dot(flat.Unit)
 				end
 
-				if distance <= Config.Combat.CloseAssistRange or facing >= assistDot then
+				if (distance <= Config.Combat.CloseAssistRange or facing >= assistDot)
+					and hasLineOfSight(character, demon, root, body) then
 					local score = distance + (1 - facing) * Config.Combat.AssistFacingWeight
 					if score < bestScore then
 						best = demon
