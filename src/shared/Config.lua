@@ -101,6 +101,20 @@ Config.Hazards = {
 	LavaCooldown = 1.1,
 }
 
+
+Config.HellBook = {
+	DemonOrder = {"Imp", "Brute", "Watcher", "FurnaceHound", "Crawler", "Butcher"},
+	PartOrder = {"ImpLegs", "BruteArm", "WatcherEye", "DemonHorn", "DemonWings", "ClawArm", "ButcherArm"},
+	DemonNotes = {
+		Imp = "ASH FIELDS • Fast, weak, and usually the first meal-ticket of a run.",
+		Brute = "BONE YARD • Slow heavy hitter. Its slam can launch careless hunters.",
+		Watcher = "SOUL PENS • Marks the ground before striking from range.",
+		FurnaceHound = "CINDER RUN • Fast predator with a telegraphed charge.",
+		Crawler = "BONE YARD • Tears into both health and hunger.",
+		Butcher = "SLAUGHTER PIT • Three-phase boss. Survive the frenzy to leave the circle.",
+	},
+}
+
 Config.Demons = {
 	Imp = {
 		DisplayName = "Imp",
