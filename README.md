@@ -113,9 +113,12 @@ The playable build now also includes:
 - lightweight hit / reward audio cues
 - THE BUTCHER boss health bar
 - distinct procedural silhouettes for each demon family
-- Brute knockback
-- Watcher ranged bolts
-- Furnace Hound charges
+- telegraphed Brute attacks
+- telegraphed Watcher strike zones
+- telegraphed Furnace Hound charge lanes
+- telegraphed THE BUTCHER slam
+- player dash with mobile button + Shift/Q
+- Rusty Cleaver swing motion, blade trail and camera kick
 - Bone Crawler hunger attacks
 - graft and cooking screen feedback
 
