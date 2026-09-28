@@ -2,7 +2,9 @@
 
 Use the **DEV PANEL** in Roblox Studio to test systems without waiting through a full run. The panel and debug commands are disabled outside Studio.
 
-Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-01** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
+Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-02** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
+
+Also watch the DEV PANEL runtime line during tests. It reports FPS, active demons, active Lost Souls, Circle, run state, and the effective FX mode.
 
 ## Fast smoke test
 
