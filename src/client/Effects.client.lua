@@ -108,6 +108,51 @@ local bossFillCorner = Instance.new("UICorner")
 bossFillCorner.CornerRadius = UDim.new(1, 0)
 bossFillCorner.Parent = bossFill
 
+
+local fullPulse
+
+local phaseBanner = Instance.new("TextLabel")
+phaseBanner.AnchorPoint = Vector2.new(0.5, 0.5)
+phaseBanner.Position = UDim2.fromScale(0.5, 0.34)
+phaseBanner.Size = UDim2.fromOffset(420, 76)
+phaseBanner.BackgroundTransparency = 1
+phaseBanner.TextTransparency = 1
+phaseBanner.TextColor3 = Color3.fromRGB(255, 205, 155)
+phaseBanner.TextStrokeTransparency = 0.55
+phaseBanner.Font = Enum.Font.GothamBlack
+phaseBanner.TextSize = 30
+phaseBanner.TextWrapped = true
+phaseBanner.Parent = gui
+
+local function showBossPhase(phase)
+	if phase == 2 then
+		phaseBanner.Text = "THE BUTCHER\nPHASE II"
+		phaseBanner.TextColor3 = Color3.fromRGB(255, 165, 105)
+		bossStroke.Color = Color3.fromRGB(220, 90, 50)
+		bossFill.BackgroundColor3 = Color3.fromRGB(220, 85, 45)
+	elseif phase == 3 then
+		phaseBanner.Text = "FRENZY\nPHASE III"
+		phaseBanner.TextColor3 = Color3.fromRGB(255, 100, 90)
+		bossStroke.Color = Color3.fromRGB(255, 55, 55)
+		bossFill.BackgroundColor3 = Color3.fromRGB(235, 45, 45)
+	else
+		return
+	end
+
+	phaseBanner.TextTransparency = 0
+	phaseBanner.Size = UDim2.fromOffset(470, 86)
+	TweenService:Create(phaseBanner, TweenInfo.new(0.24, Enum.EasingStyle.Back), {
+		Size = UDim2.fromOffset(420, 76),
+	}):Play()
+	fullPulse(phase == 3 and Color3.fromRGB(150, 20, 25) or Color3.fromRGB(130, 50, 25))
+
+	task.delay(1.55, function()
+		TweenService:Create(phaseBanner, TweenInfo.new(0.42), {
+			TextTransparency = 1,
+		}):Play()
+	end)
+end
+
 local function flashDamage(strength)
 	strength = strength or 0.28
 	damageFlash.BackgroundTransparency = math.clamp(1 - strength, 0.5, 0.92)
@@ -160,7 +205,7 @@ local function floatingDamage(position, amount, isBoss)
 	Debris:AddItem(anchor, 0.65)
 end
 
-local function fullPulse(color)
+fullPulse = function(color)
 	pulse.BackgroundColor3 = color
 	pulse.BackgroundTransparency = 0.78
 	TweenService:Create(pulse, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
@@ -306,9 +351,15 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 		end)
 	elseif kind == "ENEMY_HIT" then
 		flashDamage(0.26)
+	elseif kind == "BOSS_PHASE" then
+		showBossPhase(tonumber(payload.Phase) or 1)
+	elseif kind == "BUTCHER_CROSS" then
+		flashDamage(0.43)
 	elseif kind == "BOSS_SPAWN" then
 		rewardSound.PlaybackSpeed = 0.55
 		rewardSound:Play()
+		bossStroke.Color = Color3.fromRGB(180, 56, 50)
+		bossFill.BackgroundColor3 = Color3.fromRGB(198, 60, 48)
 		bossFrame.Visible = true
 		bossFrame.Size = UDim2.new(0.2, 0, 0, 62)
 		TweenService:Create(bossFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back), {
@@ -337,8 +388,10 @@ task.spawn(function()
 		if boss then
 			local health = boss:GetAttribute("Health") or 0
 			local maxHealth = boss:GetAttribute("MaxHealth") or 1
+			local phase = boss:GetAttribute("BossPhase") or 1
 			bossFrame.Visible = true
-			bossTitle.Text = string.format("THE BUTCHER   %d / %d", math.ceil(health), maxHealth)
+			local suffix = phase == 3 and "  •  FRENZY" or phase == 2 and "  •  PHASE II" or ""
+			bossTitle.Text = string.format("THE BUTCHER%s   %d / %d", suffix, math.ceil(health), maxHealth)
 			bossFill.Size = UDim2.fromScale(math.clamp(health / math.max(1, maxHealth), 0, 1), 1)
 		elseif Workspace:GetAttribute("BossAlive") ~= true then
 			bossFrame.Visible = false

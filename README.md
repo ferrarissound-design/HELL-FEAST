@@ -117,6 +117,10 @@ The playable build now also includes:
 - telegraphed Watcher strike zones
 - telegraphed Furnace Hound charge lanes
 - telegraphed THE BUTCHER slam
+- three-stage THE BUTCHER boss fight
+- Phase II minion summons + cross-cut attack
+- Phase III FRENZY with faster movement and tighter attack cadence
+- dramatic boss phase UI / visual rage state
 - player dash with mobile button + Shift/Q
 - Rusty Cleaver swing motion, blade trail and camera kick
 - Bone Crawler hunger attacks

@@ -27,6 +27,20 @@ Config.Movement = {
 	DashHungerCost = 2.5,
 }
 
+Config.Butcher = {
+	PhaseTwoHealthRatio = 0.67,
+	PhaseThreeHealthRatio = 0.34,
+	PhaseTwoSpeedMultiplier = 1.18,
+	PhaseThreeSpeedMultiplier = 1.40,
+	PhaseTwoSlamCooldown = 6.0,
+	PhaseThreeSlamCooldown = 4.8,
+	CrossCutCooldown = 10,
+	FrenzyCrossCutCooldown = 7,
+	CrossCutRange = 27,
+	CrossCutWidth = 4.2,
+	CrossCutDamageMultiplier = 0.62,
+}
+
 Config.Circle = {
 	HealthMultiplierPerCircle = 0.28,
 	DamageMultiplierPerCircle = 0.18,
