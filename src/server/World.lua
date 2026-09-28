@@ -258,6 +258,34 @@ function World.Build()
 
 	makePart(kitchen, "KitchenFloor", Vector3.new(48, 2, 40), Vector3.new(0, 1, 0), Enum.Material.Cobblestone, Color3.fromRGB(76, 60, 64))
 
+	local sanctuary = Instance.new("Folder")
+	sanctuary.Name = "SanctuaryBoundary"
+	sanctuary.Parent = kitchen
+
+	local segmentCount = 24
+	local sanctuaryRadius = Config.Safety.SanctuaryRadius
+	for i = 1, segmentCount do
+		local angle = (i / segmentCount) * math.pi * 2
+		local nextAngle = ((i + 1) / segmentCount) * math.pi * 2
+		local a = Vector3.new(math.cos(angle) * sanctuaryRadius, 0.55, math.sin(angle) * sanctuaryRadius)
+		local b = Vector3.new(math.cos(nextAngle) * sanctuaryRadius, 0.55, math.sin(nextAngle) * sanctuaryRadius)
+		local midpoint = (a + b) / 2
+		local length = (b - a).Magnitude
+		local segment = makePart(
+			sanctuary,
+			"SanctuaryMark",
+			Vector3.new(0.32, 0.12, length),
+			midpoint,
+			Enum.Material.Neon,
+			Color3.fromRGB(215, 105, 95)
+		)
+		segment.CanCollide = false
+		segment.CanTouch = false
+		segment.CanQuery = false
+		segment.Transparency = 0.38
+		segment.CFrame = CFrame.lookAt(midpoint, b)
+	end
+
 	for _, wallInfo in ipairs({
 		{Vector3.new(48, 7, 2), Vector3.new(0, 4.5, 19)},
 		{Vector3.new(2, 7, 40), Vector3.new(-23, 4.5, 0)},
@@ -274,7 +302,7 @@ function World.Build()
 	kitchenLight.Range = 45
 	kitchenLight.Brightness = 2.2
 	kitchenLight.Parent = kitchenBeacon
-	billboard(kitchenBeacon, "HELL KITCHEN", Vector3.new(0, 9, 0), UDim2.fromOffset(230, 46))
+	billboard(kitchenBeacon, "HELL KITCHEN • SANCTUARY", Vector3.new(0, 9, 0), UDim2.fromOffset(230, 46))
 
 	local beaconFire = Instance.new("Fire")
 	beaconFire.Name = "HellKitchenFlame"
