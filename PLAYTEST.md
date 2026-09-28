@@ -16,6 +16,8 @@ Use the **DEV PANEL** in Roblox Studio to test systems without waiting through a
 5. Graft at least three different parts and verify the avatar changes and stats update.
 6. Add **+3 Lost Souls**, return to HELL KITCHEN, and test all three recipes.
 7. Set Hunger low naturally or continue playing long enough to verify hunger warnings and starvation behavior.
+8. Take damage and confirm the custom HEALTH bar updates immediately.
+9. Raise VITALITY and confirm the HEALTH maximum updates.
 
 ## Boss test in under two minutes
 
@@ -137,6 +139,9 @@ Verify the failure cases that can ruin a public session:
 - confirm permanent upgrades refuse purchases while progression is read-only
 - confirm a failed profile load cannot write default values over the profile
 - restore DataStore access and confirm normal saves clear the failure state
+- leave a session running for at least the configured autosave interval and confirm a save occurs without ending the run
+- simulate a missing v2 profile with legacy DNA available and confirm migration succeeds
+- simulate legacy DataStore read failure and confirm the session becomes read-only instead of writing a zero-value migration
 
 ## Stop-ship bugs
 
