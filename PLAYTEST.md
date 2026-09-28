@@ -2,7 +2,7 @@
 
 Use the **DEV PANEL** in Roblox Studio to test systems without waiting through a full run. The panel and debug commands are disabled outside Studio.
 
-Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-04** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
+Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-05** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
 
 Also watch the DEV PANEL runtime line during tests. It reports FPS, active demons, active Lost Souls, Circle, run state, and the effective FX mode.
 
@@ -149,6 +149,21 @@ Verify:
 - Damage numbers can be disabled
 - Camera motion can be disabled while attack and dash gameplay still works
 
+## Watchdog / remote guard test
+
+Use the DEV PANEL watchdog/security buttons.
+
+Verify:
+
+- removing an active THE BUTCHER causes exactly one watchdog boss recovery after the grace window
+- emptying a normal active hunt outside SANCTUARY causes exactly one demon recovery
+- marking an open decision overdue resolves missing votes toward ESCAPE
+- each successful repair increments WD and updates the last recovery reason
+- normal play does not continuously increment WD
+- invalid dash payload increments SEC but does not move the player
+- invalid vote payload increments SEC but does not alter vote tallies
+- malformed / rapid remote calls do not produce repeating server errors
+
 ## Release safety test
 
 Verify the failure cases that can ruin a public session:
@@ -187,3 +202,5 @@ Do not publish a new build if any of these occur:
 - players can attack demons from inside SANCTUARY
 - falling out of the map leaves a player stranded
 - a failed profile load is allowed to overwrite stored progression
+- watchdog enters a repeated recovery loop
+- invalid custom remote payloads can mutate gameplay state
