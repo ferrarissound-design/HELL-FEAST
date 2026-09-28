@@ -1093,6 +1093,7 @@ local function createDemon(demonType, circle, forcedPosition)
 			end
 
 			local targetPlayer, distance = nearestLivingPlayer(body.Position)
+			local performedMeleeThisTick = false
 			if targetPlayer then
 				local character, humanoid = getCharacterHumanoid(targetPlayer)
 				local targetRoot = character and character:FindFirstChild("HumanoidRootPart")
@@ -1123,7 +1124,6 @@ local function createDemon(demonType, circle, forcedPosition)
 						end
 					end
 
-					local performedMeleeThisTick = false
 					if distance <= data.AttackRange
 						and attackPathClear
 						and os.clock() - lastDemonAttack >= data.AttackCooldown
