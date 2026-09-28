@@ -53,12 +53,17 @@ local hazardTouchAt = {}
 local lastRecoveryAt = {}
 local lastSanctuaryNoticeAt = {}
 local votes = {}
+local decisionEligible = {}
 
 Workspace:SetAttribute("RunState", "BOOTING")
 Workspace:SetAttribute("RunTimeLeft", Config.RunDuration)
 Workspace:SetAttribute("Circle", 1)
 Workspace:SetAttribute("BossAlive", false)
 Workspace:SetAttribute("DecisionOpen", false)
+Workspace:SetAttribute("DecisionEscapeVotes", 0)
+Workspace:SetAttribute("DecisionDescendVotes", 0)
+Workspace:SetAttribute("DecisionVoted", 0)
+Workspace:SetAttribute("DecisionEligible", 0)
 
 local function notify(player, text)
 	notifyRemote:FireClient(player, text)
@@ -1231,8 +1236,39 @@ for _, pad in ipairs(upgradePads:GetChildren()) do
 	end
 end
 
+local function updateDecisionTallies()
+	local escapeVotes = 0
+	local descendVotes = 0
+	local voted = 0
+	local eligible = 0
+
+	for userId in pairs(decisionEligible) do
+		eligible += 1
+		local choice = votes[userId]
+		if choice == "DESCEND" then
+			descendVotes += 1
+			voted += 1
+		elseif choice == "ESCAPE" then
+			escapeVotes += 1
+			voted += 1
+		end
+	end
+
+	Workspace:SetAttribute("DecisionEscapeVotes", escapeVotes)
+	Workspace:SetAttribute("DecisionDescendVotes", descendVotes)
+	Workspace:SetAttribute("DecisionVoted", voted)
+	Workspace:SetAttribute("DecisionEligible", eligible)
+
+	return voted, eligible, escapeVotes, descendVotes
+end
+
 decisionVoteRemote.OnServerEvent:Connect(function(player, choice)
 	if not decisionOpen then
+		return
+	end
+
+	if decisionEligible[player.UserId] ~= true then
+		notify(player, "Decision already underway • you will follow the group.")
 		return
 	end
 
@@ -1246,6 +1282,7 @@ decisionVoteRemote.OnServerEvent:Connect(function(player, choice)
 
 	votes[player.UserId] = choice
 	player:SetAttribute("DecisionVote", choice)
+	updateDecisionTallies()
 	notify(player, "Vote locked: " .. choice)
 end)
 
@@ -1265,6 +1302,7 @@ local function resetPlayerForNewRun(player)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
 	player:SetAttribute("DecisionVote", "")
+	player:SetAttribute("DecisionEligible", false)
 	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 	player:SetAttribute("InSanctuary", true)
 
@@ -1285,8 +1323,15 @@ local function prepareDescend(player)
 	local hunger = player:GetAttribute("Hunger") or 0
 	player:SetAttribute("Hunger", math.min(maxHunger, hunger + Config.Hunger.DescendRestore))
 	player:SetAttribute("DecisionVote", "")
+	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
+	player:SetAttribute("InSanctuary", true)
 
-	local _, humanoid = getCharacterHumanoid(player)
+	local character, humanoid = getCharacterHumanoid(player)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.CFrame = CFrame.new(Config.Navigation.KitchenPosition + Vector3.new(0, 3, 8))
+	end
 	if humanoid then
 		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + humanoid.MaxHealth * 0.35)
 	end
@@ -1308,6 +1353,7 @@ local function setupPlayer(player)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
 	player:SetAttribute("DecisionVote", "")
+	player:SetAttribute("DecisionEligible", false)
 	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 	player:SetAttribute("InSanctuary", true)
 	player:SetAttribute("SaveWarningShown", false)
@@ -1383,6 +1429,10 @@ Players.PlayerRemoving:Connect(function(player)
 	lastRecoveryAt[player] = nil
 	lastSanctuaryNoticeAt[player] = nil
 	votes[player.UserId] = nil
+	decisionEligible[player.UserId] = nil
+	if decisionOpen then
+		updateDecisionTallies()
+	end
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
@@ -1752,33 +1802,39 @@ end
 local function conductDecision()
 	decisionOpen = true
 	votes = {}
+	decisionEligible = {}
 	Workspace:SetAttribute("DecisionOpen", true)
 	Workspace:SetAttribute("RunState", "DECISION")
 
 	for _, player in ipairs(Players:GetPlayers()) do
+		decisionEligible[player.UserId] = true
+		player:SetAttribute("DecisionEligible", true)
 		player:SetAttribute("DecisionVote", "")
 	end
+	updateDecisionTallies()
 
 	for remaining = Config.DecisionDuration, 0, -1 do
 		Workspace:SetAttribute("RunTimeLeft", remaining)
+		local voted, eligible = updateDecisionTallies()
+		if eligible > 0 and voted >= eligible then
+			task.wait(0.55)
+			break
+		end
 		task.wait(1)
 	end
 
 	decisionOpen = false
 	Workspace:SetAttribute("DecisionOpen", false)
 
-	local escapeVotes = 0
-	local descendVotes = 0
-	for _, player in ipairs(Players:GetPlayers()) do
-		local vote = votes[player.UserId]
-		if vote == "DESCEND" then
-			descendVotes += 1
-		else
-			escapeVotes += 1
-		end
-	end
+	local voted, eligible, escapeVotes, descendVotes = updateDecisionTallies()
+	local effectiveEscapeVotes = escapeVotes + math.max(0, eligible - voted)
 
-	if descendVotes > escapeVotes then
+	for _, player in ipairs(Players:GetPlayers()) do
+		player:SetAttribute("DecisionEligible", false)
+	end
+	decisionEligible = {}
+
+	if descendVotes > effectiveEscapeVotes then
 		return "DESCEND"
 	end
 	return "ESCAPE"
@@ -1822,7 +1878,7 @@ local function runCircle()
 			for _, player in ipairs(Players:GetPlayers()) do
 				feedback(player, "BOSS_SPAWN", {Circle = currentCircle})
 			end
-			createDemon("Butcher", currentCircle, Vector3.new(0, 6, -108))
+			createDemon("Butcher", currentCircle, Config.Navigation.BossPosition)
 		end
 
 		if circleBossDefeated then
@@ -1868,11 +1924,15 @@ local function runCircle()
 
 	local choice = conductDecision()
 	if choice == "DESCEND" then
+		Workspace:SetAttribute("RunState", "DESCENDING")
 		notifyAll("THE GATE OPENS DOWNWARD. Your grafts remain.")
 		for _, player in ipairs(Players:GetPlayers()) do
 			prepareDescend(player)
 		end
-		task.wait(3)
+		for remaining = 3, 1, -1 do
+			Workspace:SetAttribute("RunTimeLeft", remaining)
+			task.wait(1)
+		end
 		return "DESCEND"
 	end
 
@@ -1906,7 +1966,15 @@ local function runLoop()
 
 		runActive = false
 		decisionOpen = false
+		decisionEligible = {}
+		for _, player in ipairs(Players:GetPlayers()) do
+			player:SetAttribute("DecisionEligible", false)
+		end
 		Workspace:SetAttribute("DecisionOpen", false)
+		Workspace:SetAttribute("DecisionEscapeVotes", 0)
+		Workspace:SetAttribute("DecisionDescendVotes", 0)
+		Workspace:SetAttribute("DecisionVoted", 0)
+		Workspace:SetAttribute("DecisionEligible", 0)
 		clearRunEntities(true)
 
 		for remaining = Config.IntermissionDuration, 0, -1 do

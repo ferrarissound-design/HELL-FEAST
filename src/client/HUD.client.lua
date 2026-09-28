@@ -314,8 +314,15 @@ local function refresh()
 	parts.Text = #equipped > 0 and ("GRAFTS: " .. table.concat(equipped, " / ")) or "GRAFTS: none"
 
 	local decisionOpen = Workspace:GetAttribute("DecisionOpen") == true
+	local decisionEligible = player:GetAttribute("DecisionEligible") == true
 	decisionFrame.Visible = decisionOpen
 	descendButton.Visible = circle < Config.MaxCircle
+	escapeButton.Active = decisionEligible
+	escapeButton.AutoButtonColor = decisionEligible
+	descendButton.Active = decisionEligible
+	descendButton.AutoButtonColor = decisionEligible
+	escapeButton.BackgroundTransparency = decisionEligible and 0 or 0.42
+	descendButton.BackgroundTransparency = decisionEligible and 0 or 0.42
 	if decisionOpen and circle >= Config.MaxCircle then
 		decisionTitle.Text = "DEEPEST CIRCLE CLEARED\nESCAPE WITH YOUR HAUL"
 	else
@@ -323,10 +330,29 @@ local function refresh()
 	end
 
 	local vote = player:GetAttribute("DecisionVote") or ""
-	if vote ~= "" then
-		voteStatus.Text = "VOTED: " .. vote
+	local escapeVotes = Workspace:GetAttribute("DecisionEscapeVotes") or 0
+	local descendVotes = Workspace:GetAttribute("DecisionDescendVotes") or 0
+	local eligible = Workspace:GetAttribute("DecisionEligible") or 0
+	local remaining = Workspace:GetAttribute("RunTimeLeft") or 0
+
+	if decisionOpen and not decisionEligible then
+		voteStatus.Text = "JOINED LATE • following the group decision"
+	elseif vote ~= "" then
+		voteStatus.Text = string.format(
+			"YOUR VOTE: %s   •   ESCAPE %d  /  DESCEND %d   •   %ds",
+			vote,
+			escapeVotes,
+			descendVotes,
+			math.max(0, math.floor(remaining))
+		)
 	elseif decisionOpen then
-		voteStatus.Text = "No vote defaults to ESCAPE"
+		voteStatus.Text = string.format(
+			"ESCAPE %d  /  DESCEND %d   •   %d voters   •   %ds",
+			escapeVotes,
+			descendVotes,
+			eligible,
+			math.max(0, math.floor(remaining))
+		)
 	else
 		voteStatus.Text = ""
 	end
@@ -334,13 +360,16 @@ end
 
 for _, attribute in ipairs({
 	"Hunger", "MaxHunger", "Souls", "DemonDNA", "RunDNA", "Kills", "DamageMultiplier", "BestCircle",
-	"Upgrade_Vitality", "Upgrade_Metabolism", "Upgrade_Butchery", "DecisionVote", "ProgressionReadOnly",
+	"Upgrade_Vitality", "Upgrade_Metabolism", "Upgrade_Butchery", "DecisionVote", "DecisionEligible", "ProgressionReadOnly",
 	"Part_HEAD", "Part_EYE", "Part_LEFT_ARM", "Part_RIGHT_ARM", "Part_LEGS", "Part_BACK",
 }) do
 	player:GetAttributeChangedSignal(attribute):Connect(refresh)
 end
 
-for _, attribute in ipairs({"RunState", "RunTimeLeft", "Circle", "DecisionOpen", "DirectorMode"}) do
+for _, attribute in ipairs({
+	"RunState", "RunTimeLeft", "Circle", "DecisionOpen", "DirectorMode",
+	"DecisionEscapeVotes", "DecisionDescendVotes", "DecisionEligible",
+}) do
 	Workspace:GetAttributeChangedSignal(attribute):Connect(refresh)
 end
 
