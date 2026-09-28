@@ -65,6 +65,7 @@ local function notify(player, text)
 end
 
 local getCharacterHumanoid
+local isPlayerProtected
 
 local function feedback(player, kind, payload)
 	if player then
@@ -145,7 +146,7 @@ local function isInSanctuaryPosition(position)
 	return flatDistanceFromKitchen(position) <= Config.Safety.SanctuaryRadius
 end
 
-local function isPlayerProtected(player, root)
+isPlayerProtected = function(player, root)
 	if not root then
 		return true
 	end
@@ -1446,7 +1447,7 @@ local function directorSnapshot()
 	for _, player in ipairs(Players:GetPlayers()) do
 		local character, humanoid = getCharacterHumanoid(player)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and root and humanoid.Health > 0 then
+		if humanoid and root and humanoid.Health > 0 and not isPlayerProtected(player, root) then
 			living += 1
 			healthTotal += humanoid.Health / math.max(1, humanoid.MaxHealth)
 
@@ -1532,6 +1533,12 @@ task.spawn(function()
 
 		local now = os.clock()
 		local snapshot = directorSnapshot()
+		if snapshot.Living <= 0 then
+			Workspace:SetAttribute("DirectorPressure", Config.Director.MinPressure)
+			Workspace:SetAttribute("DirectorMode", "QUIET")
+			Workspace:SetAttribute("DirectorDemonCap", #demonsFolder:GetChildren())
+			continue
+		end
 		local pressure = calculateDirectorPressure(snapshot)
 		local mode = directorModeFor(pressure)
 
