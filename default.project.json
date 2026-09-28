@@ -1,0 +1,23 @@
+{
+  "name": "HELL-FEAST",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "HELLFEAST": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "HELLFEAST": {
+          "$path": "src/client"
+        }
+      }
+    }
+  }
+}
