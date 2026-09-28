@@ -2043,7 +2043,7 @@ end
 task.spawn(function()
 	local bossMissingSince = nil
 	local emptyRunSince = nil
-	local lastRecoveryAt = 0
+	local lastWatchdogRecoveryAt = 0
 
 	while true do
 		task.wait(Config.Watchdog.TickSeconds)
@@ -2062,9 +2062,9 @@ task.spawn(function()
 			else
 				bossMissingSince = bossMissingSince or now
 				if now - bossMissingSince >= Config.Watchdog.BossMissingGraceSeconds
-					and now - lastRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+					and now - lastWatchdogRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
 
-					lastRecoveryAt = now
+					lastWatchdogRecoveryAt = now
 					bossMissingSince = nil
 					createDemon("Butcher", currentCircle, Config.Navigation.BossPosition)
 					feedbackAll("BOSS_SPAWN", {Circle = currentCircle})
@@ -2080,9 +2080,9 @@ task.spawn(function()
 			if snapshot.Living > 0 and #demonsFolder:GetChildren() == 0 then
 				emptyRunSince = emptyRunSince or now
 				if now - emptyRunSince >= Config.Watchdog.EmptyRunGraceSeconds
-					and now - lastRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+					and now - lastWatchdogRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
 
-					lastRecoveryAt = now
+					lastWatchdogRecoveryAt = now
 					emptyRunSince = nil
 					createDemon(chooseDemonType(currentCircle), currentCircle)
 					recordWatchdogRecovery("restored an empty active hunt")
@@ -2096,7 +2096,7 @@ task.spawn(function()
 
 		if decisionOpen and decisionStartedAt
 			and now - decisionStartedAt >= Config.DecisionDuration + Config.Watchdog.DecisionOvertimeSeconds
-			and now - lastRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+			and now - lastWatchdogRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
 
 			local changed = false
 			for userId in pairs(decisionEligible) do
@@ -2107,7 +2107,7 @@ task.spawn(function()
 			end
 
 			if changed then
-				lastRecoveryAt = now
+				lastWatchdogRecoveryAt = now
 				updateDecisionTallies()
 				recordWatchdogRecovery("forced overdue decision toward ESCAPE")
 			end
