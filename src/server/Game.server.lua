@@ -1,11 +1,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataStoreService = game:GetService("DataStoreService")
-local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local World = require(script.Parent:WaitForChild("World"))
+local Progression = require(script.Parent:WaitForChild("Progression"))
 
 Players.RespawnTime = 3
 
@@ -13,7 +12,9 @@ local world = World.Build()
 local demonsFolder = world:WaitForChild("Demons")
 local soulsFolder = world:WaitForChild("LostSouls")
 local dropsFolder = world:WaitForChild("Drops")
-local stationsFolder = world:WaitForChild("HellKitchen"):WaitForChild("CookStations")
+local kitchen = world:WaitForChild("HellKitchen")
+local stationsFolder = kitchen:WaitForChild("CookStations")
+local upgradePads = kitchen:WaitForChild("UpgradePads")
 
 local remotes = ReplicatedStorage:FindFirstChild("HellFeastRemotes") or Instance.new("Folder")
 remotes.Name = "HellFeastRemotes"
@@ -23,21 +24,32 @@ local notifyRemote = remotes:FindFirstChild("Notify") or Instance.new("RemoteEve
 notifyRemote.Name = "Notify"
 notifyRemote.Parent = remotes
 
-local dnaStore = DataStoreService:GetDataStore("HellFeast_DemonDNA_v1")
+local decisionVoteRemote = remotes:FindFirstChild("DecisionVote") or Instance.new("RemoteEvent")
+decisionVoteRemote.Name = "DecisionVote"
+decisionVoteRemote.Parent = remotes
+
 local runActive = false
+local decisionOpen = false
 local currentRunId = 0
+local currentCircle = 1
+local circleBossDefeated = false
 local lastAttackAt = {}
+local votes = {}
 
 Workspace:SetAttribute("RunState", "BOOTING")
 Workspace:SetAttribute("RunTimeLeft", Config.RunDuration)
 Workspace:SetAttribute("Circle", 1)
+Workspace:SetAttribute("BossAlive", false)
+Workspace:SetAttribute("DecisionOpen", false)
 
 local function notify(player, text)
 	notifyRemote:FireClient(player, text)
 end
 
-local function clampHunger(value)
-	return math.clamp(value, 0, Config.Hunger.Max)
+local function notifyAll(text)
+	for _, player in ipairs(Players:GetPlayers()) do
+		notify(player, text)
+	end
 end
 
 local function getCharacterHumanoid(player)
@@ -46,6 +58,20 @@ local function getCharacterHumanoid(player)
 		return nil, nil
 	end
 	return character, character:FindFirstChildOfClass("Humanoid")
+end
+
+local function maxHungerFor(player)
+	local level = player:GetAttribute("Upgrade_Metabolism") or 0
+	return Config.Hunger.Max + level * Config.Upgrades.Metabolism.MaxHungerPerLevel
+end
+
+local function maxHealthFor(player)
+	local level = player:GetAttribute("Upgrade_Vitality") or 0
+	return 100 + level * Config.Upgrades.Vitality.MaxHealthPerLevel
+end
+
+local function clampHungerFor(player, value)
+	return math.clamp(value, 0, maxHungerFor(player))
 end
 
 local function clearPartVisuals(character)
@@ -60,6 +86,7 @@ local function makeVisualPart(parent, name, target, size, offset, color, shape)
 	if not target then
 		return
 	end
+
 	local part = Instance.new("Part")
 	part.Name = name
 	part.Size = size
@@ -107,8 +134,16 @@ local function applyPartVisual(player, partName)
 		makeVisualPart(holder, "ThirdEye", head, Vector3.new(0.55, 0.55, 0.22), CFrame.new(0, 0.2, -0.55), Color3.fromRGB(255, 70, 70), Enum.PartType.Ball)
 	elseif partName == "DemonHorn" and head then
 		makeVisualPart(holder, "Horn", head, Vector3.new(0.45, 1.5, 0.45), CFrame.new(0, 1.0, 0) * CFrame.Angles(0, 0, math.rad(18)), Color3.fromRGB(120, 25, 25))
-	elseif partName == "BruteArm" and leftArm then
-		makeVisualPart(holder, "BruteArm", leftArm, Vector3.new(1.5, 2.6, 1.5), CFrame.new(), Color3.fromRGB(120, 45, 40))
+	elseif (partName == "BruteArm" or partName == "ButcherArm") and leftArm then
+		local butcher = partName == "ButcherArm"
+		makeVisualPart(
+			holder,
+			butcher and "ButcherArm" or "BruteArm",
+			leftArm,
+			butcher and Vector3.new(1.85, 3.0, 1.85) or Vector3.new(1.5, 2.6, 1.5),
+			CFrame.new(),
+			butcher and Color3.fromRGB(105, 28, 30) or Color3.fromRGB(120, 45, 40)
+		)
 	elseif partName == "ClawArm" and rightArm then
 		makeVisualPart(holder, "Claw", rightArm, Vector3.new(1.0, 2.3, 1.0), CFrame.new(0, -0.3, 0), Color3.fromRGB(150, 35, 35))
 	elseif partName == "ImpLegs" then
@@ -121,7 +156,7 @@ local function applyPartVisual(player, partName)
 end
 
 local function recomputeStats(player)
-	local damageMultiplier = 1
+	local damageMultiplier = 1 + (player:GetAttribute("Upgrade_Butchery") or 0) * Config.Upgrades.Butchery.DamagePerLevel
 	local hungerMultiplier = 1
 	local walkSpeedBonus = 0
 
@@ -136,23 +171,31 @@ local function recomputeStats(player)
 
 	player:SetAttribute("DamageMultiplier", damageMultiplier)
 	player:SetAttribute("HungerMultiplier", hungerMultiplier)
+	player:SetAttribute("MaxHunger", maxHungerFor(player))
 
 	local _, humanoid = getCharacterHumanoid(player)
 	if humanoid then
-		humanoid.WalkSpeed = 16 + walkSpeedBonus
+		local oldMax = humanoid.MaxHealth
+		local newMax = maxHealthFor(player)
+		local healthRatio = oldMax > 0 and humanoid.Health / oldMax or 1
+		humanoid.MaxHealth = newMax
+		humanoid.Health = math.clamp(newMax * healthRatio, 1, newMax)
+		humanoid.WalkSpeed = math.max(10, 16 + walkSpeedBonus)
 	end
+
+	local hunger = player:GetAttribute("Hunger") or maxHungerFor(player)
+	player:SetAttribute("Hunger", clampHungerFor(player, hunger))
 end
 
 local function resetBody(player)
 	for _, data in pairs(Config.Parts) do
 		player:SetAttribute("Part_" .. data.Slot, "")
 	end
-	player:SetAttribute("DamageMultiplier", 1)
-	player:SetAttribute("HungerMultiplier", 1)
 
 	if player.Character then
 		clearPartVisuals(player.Character)
 	end
+
 	recomputeStats(player)
 end
 
@@ -169,27 +212,16 @@ local function equipPart(player, partName)
 	recomputeStats(player)
 
 	if previous and previous ~= "" and previous ~= partName then
-		notify(player, string.format("%s replaced %s", data.DisplayName, previous))
+		notify(player, string.format("%s replaced %s.", data.DisplayName, previous))
 	else
-		notify(player, data.DisplayName .. " grafted onto your body")
+		notify(player, data.DisplayName .. " grafted onto your body.")
 	end
 end
 
-local function saveDNA(player)
-	local amount = player:GetAttribute("DemonDNA") or 0
+local function savePlayer(player)
 	task.spawn(function()
-		pcall(function()
-			dnaStore:SetAsync(tostring(player.UserId), amount)
-		end)
+		Progression.Save(player)
 	end)
-end
-
-local function loadDNA(player)
-	local amount = 0
-	pcall(function()
-		amount = dnaStore:GetAsync(tostring(player.UserId)) or 0
-	end)
-	player:SetAttribute("DemonDNA", amount)
 end
 
 local function giveWeapon(player)
@@ -206,11 +238,26 @@ local function giveWeapon(player)
 
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
-	handle.Size = Vector3.new(0.6, 3.1, 0.7)
+	handle.Size = Vector3.new(0.7, 3.2, 0.8)
 	handle.Material = Enum.Material.Metal
 	handle.Color = Color3.fromRGB(95, 85, 82)
 	handle.CanCollide = false
 	handle.Parent = tool
+
+	local blade = Instance.new("Part")
+	blade.Name = "Blade"
+	blade.Size = Vector3.new(1.25, 2.25, 0.28)
+	blade.Material = Enum.Material.Metal
+	blade.Color = Color3.fromRGB(130, 120, 115)
+	blade.CanCollide = false
+	blade.Massless = true
+	blade.CFrame = handle.CFrame * CFrame.new(0.55, 1.8, 0)
+	blade.Parent = tool
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = handle
+	weld.Part1 = blade
+	weld.Parent = blade
 
 	tool.Parent = backpack
 
@@ -262,17 +309,19 @@ end
 local function nearestLivingPlayer(position)
 	local bestPlayer
 	local bestDistance = math.huge
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		local character, humanoid = getCharacterHumanoid(player)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if root and humanoid and humanoid.Health > 0 then
-			local d = (root.Position - position).Magnitude
-			if d < bestDistance then
-				bestDistance = d
+			local distance = (root.Position - position).Magnitude
+			if distance < bestDistance then
+				bestDistance = distance
 				bestPlayer = player
 			end
 		end
 	end
+
 	return bestPlayer, bestDistance
 end
 
@@ -285,12 +334,12 @@ local function dropPart(position, partName)
 	local drop = Instance.new("Part")
 	drop.Name = partName
 	drop.Shape = Enum.PartType.Ball
-	drop.Size = Vector3.new(2.2, 2.2, 2.2)
+	drop.Size = Vector3.new(2.3, 2.3, 2.3)
 	drop.Anchored = true
 	drop.CanCollide = false
 	drop.Material = Enum.Material.Neon
-	drop.Color = Color3.fromRGB(180, 60, 80)
-	drop.Position = position + Vector3.new(0, 2.2, 0)
+	drop.Color = partName == "ButcherArm" and Color3.fromRGB(255, 45, 60) or Color3.fromRGB(180, 60, 80)
+	drop.Position = position + Vector3.new(0, 2.4, 0)
 	drop.Parent = dropsFolder
 
 	local prompt = Instance.new("ProximityPrompt")
@@ -311,48 +360,79 @@ local function dropPart(position, partName)
 		drop:Destroy()
 	end)
 
-	task.delay(35, function()
+	task.delay(40, function()
 		if drop.Parent then
 			drop:Destroy()
 		end
 	end)
 end
 
-local function chooseDemonType()
-	local roll = math.random()
-	if roll < 0.57 then
-		return "Imp"
-	elseif roll < 0.82 then
-		return "Brute"
-	else
-		return "Watcher"
+local function chooseDemonType(circle)
+	local options = {"Imp", "Brute", "Watcher"}
+	if circle >= 2 then
+		table.insert(options, "FurnaceHound")
 	end
+	if circle >= 3 then
+		table.insert(options, "Crawler")
+		table.insert(options, "Crawler")
+	end
+
+	local roll = math.random()
+	if circle == 1 then
+		if roll < 0.56 then
+			return "Imp"
+		elseif roll < 0.82 then
+			return "Brute"
+		else
+			return "Watcher"
+		end
+	end
+
+	return options[math.random(1, #options)]
 end
 
-local function createDemon(demonType)
+local function bodyColorFor(demonType)
+	local colors = {
+		Imp = Color3.fromRGB(150, 55, 45),
+		Brute = Color3.fromRGB(105, 45, 40),
+		Watcher = Color3.fromRGB(95, 55, 110),
+		FurnaceHound = Color3.fromRGB(175, 70, 28),
+		Crawler = Color3.fromRGB(110, 105, 92),
+		Butcher = Color3.fromRGB(88, 24, 28),
+	}
+	return colors[demonType] or Color3.fromRGB(120, 50, 50)
+end
+
+local function createDemon(demonType, circle, forcedPosition)
 	local data = Config.Demons[demonType]
 	if not data then
-		return
+		return nil
 	end
+
+	circle = circle or currentCircle
+	local healthScale = 1 + (circle - 1) * Config.Circle.HealthMultiplierPerCircle
+	local damageScale = 1 + (circle - 1) * Config.Circle.DamageMultiplierPerCircle
+	local playerScale = data.IsBoss and (1 + math.max(0, #Players:GetPlayers() - 1) * 0.30) or 1
+	local maxHealth = math.floor(data.MaxHealth * healthScale * playerScale)
+	local damage = data.Damage * damageScale
 
 	local model = Instance.new("Model")
 	model.Name = data.DisplayName
 	model:SetAttribute("DemonType", demonType)
-	model:SetAttribute("Health", data.MaxHealth)
-	model:SetAttribute("MaxHealth", data.MaxHealth)
+	model:SetAttribute("Health", maxHealth)
+	model:SetAttribute("MaxHealth", maxHealth)
 	model:SetAttribute("LastHitUserId", 0)
+	model:SetAttribute("IsBoss", data.IsBoss == true)
 	model.Parent = demonsFolder
 
 	local body = Instance.new("Part")
 	body.Name = "Body"
 	body.Anchored = true
 	body.CanCollide = true
-	body.Material = Enum.Material.Slate
-	body.Color = demonType == "Watcher" and Color3.fromRGB(95, 55, 110)
-		or demonType == "Brute" and Color3.fromRGB(105, 45, 40)
-		or Color3.fromRGB(150, 55, 45)
+	body.Material = data.IsBoss and Enum.Material.CrackedLava or Enum.Material.Slate
+	body.Color = bodyColorFor(demonType)
 	body.Size = data.BodyScale
-	body.Position = randomArenaPosition()
+	body.Position = forcedPosition or randomArenaPosition()
 	body.Parent = model
 	model.PrimaryPart = body
 
@@ -362,24 +442,25 @@ local function createDemon(demonType)
 	eye.CanCollide = false
 	eye.Shape = Enum.PartType.Ball
 	eye.Material = Enum.Material.Neon
-	eye.Color = Color3.fromRGB(255, 105, 85)
-	eye.Size = Vector3.new(0.8, 0.8, 0.8)
+	eye.Color = data.IsBoss and Color3.fromRGB(255, 210, 70) or Color3.fromRGB(255, 105, 85)
+	eye.Size = data.IsBoss and Vector3.new(1.6, 1.6, 1.6) or Vector3.new(0.8, 0.8, 0.8)
 	eye.CFrame = body.CFrame * CFrame.new(0, data.BodyScale.Y * 0.18, -data.BodyScale.Z * 0.52)
 	eye.Parent = model
 
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "HealthBillboard"
-	gui.Size = UDim2.fromOffset(120, 30)
+	gui.Size = data.IsBoss and UDim2.fromOffset(260, 42) or UDim2.fromOffset(130, 30)
 	gui.StudsOffset = Vector3.new(0, data.BodyScale.Y * 0.7, 0)
 	gui.AlwaysOnTop = true
 	gui.Parent = body
+
 	local hpLabel = Instance.new("TextLabel")
 	hpLabel.Size = UDim2.fromScale(1, 1)
-	hpLabel.BackgroundTransparency = 0.3
+	hpLabel.BackgroundTransparency = 0.18
 	hpLabel.BackgroundColor3 = Color3.fromRGB(25, 15, 18)
-	hpLabel.TextColor3 = Color3.fromRGB(255, 225, 220)
+	hpLabel.TextColor3 = data.IsBoss and Color3.fromRGB(255, 170, 100) or Color3.fromRGB(255, 225, 220)
 	hpLabel.TextScaled = true
-	hpLabel.Font = Enum.Font.GothamBold
+	hpLabel.Font = Enum.Font.GothamBlack
 	hpLabel.Parent = gui
 
 	local dead = false
@@ -387,32 +468,48 @@ local function createDemon(demonType)
 
 	local healthConnection
 	healthConnection = model:GetAttributeChangedSignal("Health"):Connect(function()
-		local hp = model:GetAttribute("Health") or 0
-		hpLabel.Text = string.format("%s  %d/%d", data.DisplayName, math.ceil(hp), data.MaxHealth)
-		if hp <= 0 and not dead then
-			dead = true
-			if healthConnection then
-				healthConnection:Disconnect()
-			end
+		local health = model:GetAttribute("Health") or 0
+		hpLabel.Text = string.format("%s  %d/%d", data.DisplayName, math.ceil(health), maxHealth)
 
-			local killerId = model:GetAttribute("LastHitUserId") or 0
-			local killer = Players:GetPlayerByUserId(killerId)
-			if killer then
-				killer:SetAttribute("Kills", (killer:GetAttribute("Kills") or 0) + 1)
-			end
-
-			local dropName = data.PartDrop
-			if math.random() < 0.12 then
-				local rare = {"DemonHorn", "DemonWings", "ClawArm"}
-				dropName = rare[math.random(1, #rare)]
-			end
-			dropPart(body.Position, dropName)
-			model:Destroy()
+		if health > 0 or dead then
+			return
 		end
+
+		dead = true
+		if healthConnection then
+			healthConnection:Disconnect()
+		end
+
+		local killerId = model:GetAttribute("LastHitUserId") or 0
+		local killer = Players:GetPlayerByUserId(killerId)
+		if killer then
+			killer:SetAttribute("Kills", (killer:GetAttribute("Kills") or 0) + 1)
+			local dnaMultiplier = 1 + (circle - 1) * Config.Circle.DNARewardMultiplierPerCircle
+			local dnaGain = math.max(1, math.floor((data.DNA or 1) * dnaMultiplier))
+			killer:SetAttribute("RunDNA", (killer:GetAttribute("RunDNA") or 0) + dnaGain)
+			notify(killer, string.format("+%d unbanked Demon DNA", dnaGain))
+		end
+
+		local dropName = data.PartDrop
+		if not data.IsBoss and math.random() < 0.12 then
+			local rare = {"DemonHorn", "DemonWings", "ClawArm"}
+			dropName = rare[math.random(1, #rare)]
+		end
+
+		dropPart(body.Position, dropName)
+
+		if data.IsBoss then
+			circleBossDefeated = true
+			Workspace:SetAttribute("BossAlive", false)
+			notifyAll("THE BUTCHER HAS FALLEN. Decide whether to escape or descend.")
+		end
+
+		model:Destroy()
 	end)
-	model:SetAttribute("Health", data.MaxHealth)
+	model:SetAttribute("Health", maxHealth)
 
 	task.spawn(function()
+		local lastSlam = os.clock()
 		while model.Parent and not dead and runActive do
 			local targetPlayer, distance = nearestLivingPlayer(body.Position)
 			if targetPlayer then
@@ -422,22 +519,37 @@ local function createDemon(demonType)
 					local current = body.Position
 					local flatTarget = Vector3.new(targetRoot.Position.X, current.Y, targetRoot.Position.Z)
 					local delta = flatTarget - current
+
 					if delta.Magnitude > 0.01 then
 						local step = math.min(data.WalkSpeed * 0.12, delta.Magnitude)
 						local nextPosition = current + delta.Unit * step
-						local look = CFrame.lookAt(nextPosition, flatTarget)
-						model:PivotTo(look)
+						model:PivotTo(CFrame.lookAt(nextPosition, flatTarget))
 					end
 
 					if distance <= data.AttackRange and os.clock() - lastDemonAttack >= data.AttackCooldown then
 						lastDemonAttack = os.clock()
-						humanoid:TakeDamage(data.Damage)
+						humanoid:TakeDamage(damage)
 					end
 				end
 			end
+
+			if data.IsBoss and os.clock() - lastSlam >= 7 then
+				lastSlam = os.clock()
+				for _, player in ipairs(Players:GetPlayers()) do
+					local character, humanoid = getCharacterHumanoid(player)
+					local root = character and character:FindFirstChild("HumanoidRootPart")
+					if root and humanoid and humanoid.Health > 0 and (root.Position - body.Position).Magnitude <= 28 then
+						humanoid:TakeDamage(damage * 0.7)
+						notify(player, "BUTCHER SLAM!")
+					end
+				end
+			end
+
 			task.wait(0.12)
 		end
 	end)
+
+	return model
 end
 
 local function createLostSoul()
@@ -480,9 +592,10 @@ local function createLostSoul()
 		if captured then
 			return
 		end
+
 		captured = true
 		player:SetAttribute("Souls", (player:GetAttribute("Souls") or 0) + 1)
-		notify(player, "Lost Soul captured. Take it to the kitchen.")
+		notify(player, "Lost Soul captured. Take it to HELL KITCHEN.")
 		model:Destroy()
 	end)
 end
@@ -495,12 +608,12 @@ local function cook(player, recipeName)
 
 	local souls = player:GetAttribute("Souls") or 0
 	if souls < recipe.SoulCost then
-		notify(player, string.format("Need %d Lost Soul%s", recipe.SoulCost, recipe.SoulCost == 1 and "" or "s"))
+		notify(player, string.format("Need %d Lost Soul%s.", recipe.SoulCost, recipe.SoulCost == 1 and "" or "s"))
 		return
 	end
 
 	player:SetAttribute("Souls", souls - recipe.SoulCost)
-	player:SetAttribute("Hunger", clampHunger((player:GetAttribute("Hunger") or 0) + recipe.HungerRestore))
+	player:SetAttribute("Hunger", clampHungerFor(player, (player:GetAttribute("Hunger") or 0) + recipe.HungerRestore))
 
 	local _, humanoid = getCharacterHumanoid(player)
 	if humanoid and recipe.Heal and recipe.Heal > 0 then
@@ -511,7 +624,7 @@ local function cook(player, recipeName)
 		player:SetAttribute("SlowHungerUntil", Workspace:GetServerTimeNow() + recipe.SlowHungerSeconds)
 	end
 
-	notify(player, recipe.DisplayName .. " eaten")
+	notify(player, recipe.DisplayName .. " eaten.")
 end
 
 for _, station in ipairs(stationsFolder:GetChildren()) do
@@ -523,87 +636,156 @@ for _, station in ipairs(stationsFolder:GetChildren()) do
 	end
 end
 
-local function resetPlayerForRun(player)
-	player:SetAttribute("Hunger", Config.Hunger.Max)
+for _, pad in ipairs(upgradePads:GetChildren()) do
+	local prompt = pad:FindFirstChildOfClass("ProximityPrompt")
+	if prompt then
+		prompt.Triggered:Connect(function(player)
+			local key = pad:GetAttribute("UpgradeKey")
+			local success, message = Progression.TryUpgrade(player, Config, key)
+			notify(player, message)
+
+			if success then
+				recomputeStats(player)
+				savePlayer(player)
+			end
+		end)
+	end
+end
+
+decisionVoteRemote.OnServerEvent:Connect(function(player, choice)
+	if not decisionOpen then
+		return
+	end
+
+	if choice ~= "ESCAPE" and choice ~= "DESCEND" then
+		return
+	end
+
+	if currentCircle >= Config.MaxCircle and choice == "DESCEND" then
+		return
+	end
+
+	votes[player.UserId] = choice
+	player:SetAttribute("DecisionVote", choice)
+	notify(player, "Vote locked: " .. choice)
+end)
+
+local function resetPlayerForNewRun(player)
+	resetBody(player)
+	local maxHunger = maxHungerFor(player)
+	player:SetAttribute("Hunger", maxHunger)
+	player:SetAttribute("MaxHunger", maxHunger)
 	player:SetAttribute("Souls", 0)
 	player:SetAttribute("Kills", 0)
+	player:SetAttribute("RunDNA", 0)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
-	resetBody(player)
+	player:SetAttribute("DecisionVote", "")
 
 	local _, humanoid = getCharacterHumanoid(player)
 	if humanoid then
+		humanoid.MaxHealth = maxHealthFor(player)
 		humanoid.Health = humanoid.MaxHealth
+	end
+end
+
+local function prepareDescend(player)
+	local maxHunger = maxHungerFor(player)
+	local hunger = player:GetAttribute("Hunger") or 0
+	player:SetAttribute("Hunger", math.min(maxHunger, hunger + Config.Hunger.DescendRestore))
+	player:SetAttribute("DecisionVote", "")
+
+	local _, humanoid = getCharacterHumanoid(player)
+	if humanoid then
+		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + humanoid.MaxHealth * 0.35)
 	end
 end
 
 local function setupPlayer(player)
 	player:SetAttribute("Hunger", Config.Hunger.Max)
+	player:SetAttribute("MaxHunger", Config.Hunger.Max)
 	player:SetAttribute("Souls", 0)
 	player:SetAttribute("Kills", 0)
+	player:SetAttribute("RunDNA", 0)
 	player:SetAttribute("DamageMultiplier", 1)
 	player:SetAttribute("HungerMultiplier", 1)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
+	player:SetAttribute("DecisionVote", "")
 
 	for _, data in pairs(Config.Parts) do
 		player:SetAttribute("Part_" .. data.Slot, "")
 	end
 
-	loadDNA(player)
+	Progression.Load(player, Config)
+	recomputeStats(player)
+	player:SetAttribute("Hunger", maxHungerFor(player))
 
 	player.CharacterAdded:Connect(function(character)
 		local humanoid = character:WaitForChild("Humanoid", 8)
-		task.wait(0.4)
+		task.wait(0.35)
 		clearPartVisuals(character)
+		recomputeStats(player)
 
 		if humanoid then
+			humanoid.Health = humanoid.MaxHealth
 			humanoid.Died:Connect(function()
-				resetBody(player)
-				player:SetAttribute("Hunger", 60)
-				player:SetAttribute("Souls", 0)
-				notify(player, "You died. Your grafted demon body was lost.")
+				if runActive then
+					local runDNA = player:GetAttribute("RunDNA") or 0
+					local lost = math.floor(runDNA * 0.20)
+					player:SetAttribute("RunDNA", math.max(0, runDNA - lost))
+					resetBody(player)
+					player:SetAttribute("Hunger", math.min(maxHungerFor(player), 60))
+					player:SetAttribute("Souls", 0)
+					notify(player, string.format("Death stripped your grafts. %d unbanked DNA lost.", lost))
+				end
 			end)
 		end
 
-		task.wait(0.5)
+		task.wait(0.35)
 		giveWeapon(player)
-		recomputeStats(player)
 	end)
 
 	if player.Character then
 		task.defer(function()
-			giveWeapon(player)
 			recomputeStats(player)
+			giveWeapon(player)
 		end)
 	end
 end
 
 Players.PlayerAdded:Connect(setupPlayer)
 Players.PlayerRemoving:Connect(function(player)
-	saveDNA(player)
+	savePlayer(player)
 	lastAttackAt[player] = nil
+	votes[player.UserId] = nil
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(setupPlayer, player)
 end
 
+game:BindToClose(function()
+	for _, player in ipairs(Players:GetPlayers()) do
+		Progression.Save(player)
+	end
+end)
+
 task.spawn(function()
 	while true do
 		task.wait(1)
 		if runActive then
 			for _, player in ipairs(Players:GetPlayers()) do
-				local character, humanoid = getCharacterHumanoid(player)
-				if character and humanoid and humanoid.Health > 0 then
-					local hunger = player:GetAttribute("Hunger") or Config.Hunger.Max
+				local _, humanoid = getCharacterHumanoid(player)
+				if humanoid and humanoid.Health > 0 then
+					local hunger = player:GetAttribute("Hunger") or maxHungerFor(player)
 					local hungerMultiplier = player:GetAttribute("HungerMultiplier") or 1
 					local slowUntil = player:GetAttribute("SlowHungerUntil") or 0
 					local slowMultiplier = Workspace:GetServerTimeNow() < slowUntil and 0.5 or 1
 
 					if hunger > 0 then
 						hunger -= Config.Hunger.BaseDrainPerSecond * hungerMultiplier * slowMultiplier
-						player:SetAttribute("Hunger", clampHunger(hunger))
+						player:SetAttribute("Hunger", clampHungerFor(player, hunger))
 						player:SetAttribute("StarveTime", 0)
 					else
 						local starveTime = (player:GetAttribute("StarveTime") or 0) + 1
@@ -620,9 +802,10 @@ end)
 
 task.spawn(function()
 	while true do
-		task.wait(Config.Spawning.DemonInterval)
-		if runActive and #demonsFolder:GetChildren() < Config.Spawning.MaxDemons then
-			createDemon(chooseDemonType())
+		local interval = Config.Spawning.DemonInterval / (1 + (currentCircle - 1) * Config.Circle.SpawnSpeedPerCircle)
+		task.wait(interval)
+		if runActive and Workspace:GetAttribute("RunState") ~= "BOSS" and #demonsFolder:GetChildren() < Config.Spawning.MaxDemons + (currentCircle - 1) * 3 then
+			createDemon(chooseDemonType(currentCircle), currentCircle)
 		end
 	end
 end)
@@ -636,57 +819,187 @@ task.spawn(function()
 	end
 end)
 
-local function clearRunEntities()
-	for _, folder in ipairs({demonsFolder, soulsFolder, dropsFolder}) do
-		for _, child in ipairs(folder:GetChildren()) do
-			child:Destroy()
+local function clearFolder(folder)
+	for _, child in ipairs(folder:GetChildren()) do
+		child:Destroy()
+	end
+end
+
+local function clearRunEntities(includeDrops)
+	clearFolder(demonsFolder)
+	clearFolder(soulsFolder)
+	if includeDrops then
+		clearFolder(dropsFolder)
+	end
+end
+
+local function awardRun(player, multiplier, reason)
+	local unbanked = player:GetAttribute("RunDNA") or 0
+	local award = math.max(0, math.floor(unbanked * (multiplier or 1)))
+	player:SetAttribute("DemonDNA", (player:GetAttribute("DemonDNA") or 0) + award)
+	player:SetAttribute("BestCircle", math.max(player:GetAttribute("BestCircle") or 0, currentCircle))
+	player:SetAttribute("RunDNA", 0)
+	savePlayer(player)
+	resetBody(player)
+	notify(player, string.format("%s +%d banked Demon DNA.", reason, award))
+end
+
+local function conductDecision()
+	decisionOpen = true
+	votes = {}
+	Workspace:SetAttribute("DecisionOpen", true)
+	Workspace:SetAttribute("RunState", "DECISION")
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		player:SetAttribute("DecisionVote", "")
+	end
+
+	for remaining = Config.DecisionDuration, 0, -1 do
+		Workspace:SetAttribute("RunTimeLeft", remaining)
+		task.wait(1)
+	end
+
+	decisionOpen = false
+	Workspace:SetAttribute("DecisionOpen", false)
+
+	local escapeVotes = 0
+	local descendVotes = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		local vote = votes[player.UserId]
+		if vote == "DESCEND" then
+			descendVotes += 1
+		else
+			escapeVotes += 1
 		end
 	end
+
+	if descendVotes > escapeVotes then
+		return "DESCEND"
+	end
+	return "ESCAPE"
+end
+
+local function runCircle()
+	circleBossDefeated = false
+	runActive = true
+	Workspace:SetAttribute("Circle", currentCircle)
+	Workspace:SetAttribute("RunState", "HELL RUN")
+	Workspace:SetAttribute("RunTimeLeft", Config.RunDuration)
+	Workspace:SetAttribute("BossAlive", false)
+	World.ApplyCircleStyle(currentCircle)
+
+	clearRunEntities(true)
+
+	local openingImps = 3 + currentCircle
+	for _ = 1, openingImps do
+		createDemon("Imp", currentCircle)
+	end
+	if currentCircle >= 2 then
+		createDemon("FurnaceHound", currentCircle)
+	end
+	if currentCircle >= 3 then
+		createDemon("Crawler", currentCircle)
+	end
+
+	for _ = 1, 3 do
+		createLostSoul()
+	end
+
+	notifyAll(string.format("CIRCLE %d. Feed. Graft. Survive.", currentCircle))
+
+	for remaining = Config.RunDuration, 0, -1 do
+		Workspace:SetAttribute("RunTimeLeft", remaining)
+
+		if remaining == Config.BossWindow then
+			Workspace:SetAttribute("RunState", "BOSS")
+			Workspace:SetAttribute("BossAlive", true)
+			notifyAll("THE BUTCHER ENTERS THE SLAUGHTER PIT.")
+			createDemon("Butcher", currentCircle, Vector3.new(0, 6, -108))
+		end
+
+		if circleBossDefeated then
+			break
+		end
+
+		task.wait(1)
+	end
+
+	if not circleBossDefeated then
+		runActive = false
+		Workspace:SetAttribute("BossAlive", false)
+		Workspace:SetAttribute("RunState", "FAILED")
+		clearRunEntities(true)
+		notifyAll("THE BUTCHER LIVES. The circle devours your unbanked reward.")
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			local consolation = math.floor((player:GetAttribute("RunDNA") or 0) * 0.25)
+			player:SetAttribute("RunDNA", consolation)
+			awardRun(player, 1, "Consolation:")
+		end
+
+		task.wait(8)
+		return "END"
+	end
+
+	runActive = false
+	clearFolder(demonsFolder)
+	clearFolder(soulsFolder)
+
+	if currentCircle >= Config.MaxCircle then
+		Workspace:SetAttribute("RunState", "ESCAPED")
+		Workspace:SetAttribute("RunTimeLeft", 8)
+		notifyAll("DEEPEST CIRCLE CLEARED. Your haul is secured.")
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			awardRun(player, 1.5, "Deep escape:")
+		end
+
+		task.wait(8)
+		return "END"
+	end
+
+	local choice = conductDecision()
+	if choice == "DESCEND" then
+		notifyAll("THE GATE OPENS DOWNWARD. Your grafts remain.")
+		for _, player in ipairs(Players:GetPlayers()) do
+			prepareDescend(player)
+		end
+		task.wait(3)
+		return "DESCEND"
+	end
+
+	Workspace:SetAttribute("RunState", "ESCAPED")
+	Workspace:SetAttribute("RunTimeLeft", 8)
+	for _, player in ipairs(Players:GetPlayers()) do
+		awardRun(player, 1, "Escaped:")
+	end
+	task.wait(8)
+	return "END"
 end
 
 local function runLoop()
 	while true do
 		currentRunId += 1
-		runActive = true
-		Workspace:SetAttribute("RunState", "HELL RUN")
-		Workspace:SetAttribute("RunTimeLeft", Config.RunDuration)
-
-		clearRunEntities()
+		currentCircle = 1
 
 		for _, player in ipairs(Players:GetPlayers()) do
-			resetPlayerForRun(player)
-			notify(player, "HELL RUN " .. currentRunId .. " started. Feed. Graft. Survive.")
+			resetPlayerForNewRun(player)
 		end
 
-		for _ = 1, 4 do
-			createDemon("Imp")
-		end
-		for _ = 1, 3 do
-			createLostSoul()
-		end
-
-		for remaining = Config.RunDuration, 0, -1 do
-			Workspace:SetAttribute("RunTimeLeft", remaining)
-			if remaining == 120 then
-				for _, player in ipairs(Players:GetPlayers()) do
-					notify(player, "BLOOD NIGHT: two minutes remain.")
-				end
+		local running = true
+		while running do
+			local result = runCircle()
+			if result == "DESCEND" then
+				currentCircle += 1
+			else
+				running = false
 			end
-			task.wait(1)
 		end
 
 		runActive = false
-		Workspace:SetAttribute("RunState", "ESCAPED")
-		clearRunEntities()
-
-		for _, player in ipairs(Players:GetPlayers()) do
-			local kills = player:GetAttribute("Kills") or 0
-			local reward = 10 + kills * 2
-			player:SetAttribute("DemonDNA", (player:GetAttribute("DemonDNA") or 0) + reward)
-			saveDNA(player)
-			resetBody(player)
-			notify(player, string.format("Run survived. +%d Demon DNA. Your grafts dissolve.", reward))
-		end
+		decisionOpen = false
+		Workspace:SetAttribute("DecisionOpen", false)
+		clearRunEntities(true)
 
 		for remaining = Config.IntermissionDuration, 0, -1 do
 			Workspace:SetAttribute("RunState", "INTERMISSION")
