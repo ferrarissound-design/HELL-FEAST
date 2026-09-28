@@ -1259,7 +1259,12 @@ local function resetPlayerForNewRun(player)
 	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 	player:SetAttribute("InSanctuary", true)
 
-	local _, humanoid = getCharacterHumanoid(player)
+	local character, humanoid = getCharacterHumanoid(player)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.CFrame = CFrame.new(Config.Navigation.KitchenPosition + Vector3.new(0, 3, 8))
+	end
 	if humanoid then
 		humanoid.MaxHealth = maxHealthFor(player)
 		humanoid.Health = humanoid.MaxHealth
