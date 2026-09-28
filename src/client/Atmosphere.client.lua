@@ -264,9 +264,15 @@ task.spawn(function()
 	end
 end)
 
+local cameraViewportConnection
+
 local function bindCamera(camera)
+	if cameraViewportConnection then
+		cameraViewportConnection:Disconnect()
+		cameraViewportConnection = nil
+	end
 	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateQuality)
+		cameraViewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateQuality)
 	end
 end
 
