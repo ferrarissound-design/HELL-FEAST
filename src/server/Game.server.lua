@@ -1109,10 +1109,13 @@ local function createDemon(demonType, circle, forcedPosition)
 						end
 					end
 
-					if distance <= data.AttackRange and os.clock() - lastDemonAttack >= data.AttackCooldown then
+					if distance <= data.AttackRange
+						and os.clock() - lastDemonAttack >= data.AttackCooldown
+						and model:GetAttribute("AttackBusy") ~= true then
+
 						lastDemonAttack = os.clock()
 
-						if demonType == "Brute" and model:GetAttribute("AttackBusy") ~= true then
+						if demonType == "Brute" then
 							model:SetAttribute("AttackBusy", true)
 							local slamPosition = Vector3.new(body.Position.X, targetRoot.Position.Y, body.Position.Z)
 							feedbackAll("TELEGRAPH_CIRCLE", {
