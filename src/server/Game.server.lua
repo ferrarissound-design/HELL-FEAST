@@ -573,11 +573,10 @@ local function giveWeapon(player)
 		if now - (lastAttackAt[player] or 0) < Config.Combat.AttackCooldown then
 			return
 		end
-		lastAttackAt[player] = now
 
-		local character = player.Character
+		local character, humanoid = getCharacterHumanoid(player)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if not root then
+		if not root or not humanoid or humanoid.Health <= 0 then
 			return
 		end
 
@@ -588,6 +587,8 @@ local function giveWeapon(player)
 			end
 			return
 		end
+
+		lastAttackAt[player] = now
 
 		local nearest
 		local nearestScore = math.huge
@@ -2167,6 +2168,10 @@ task.spawn(function()
 			for userId in pairs(decisionEligible) do
 				if votes[userId] ~= "ESCAPE" and votes[userId] ~= "DESCEND" then
 					votes[userId] = "ESCAPE"
+					local votePlayer = Players:GetPlayerByUserId(userId)
+					if votePlayer then
+						votePlayer:SetAttribute("DecisionVote", "ESCAPE")
+					end
 					changed = true
 				end
 			end
