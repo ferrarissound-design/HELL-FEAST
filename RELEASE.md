@@ -2,7 +2,7 @@
 
 Release candidate build:
 
-`HF-RC-20260929-01`
+`HF-RC-20260929-02`
 
 This checklist is intentionally short. If a step fails, fix that failure before publishing.
 
@@ -21,8 +21,9 @@ Expected after the release-gate PR is merged:
 - `git status` is clean
 - Roblox Studio connects through Rojo
 - Play mode shows **DEV PANEL**
-- DEV PANEL shows build **HF-RC-20260929-01**
+- DEV PANEL shows build **HF-RC-20260929-02**
 - DEV PANEL shows **QA PASS** with zero failed checks
+- DEV PANEL runtime line shows plausible FPS / demon / Soul counts and updates while playing
 
 If the Build ID is different, stop. Studio is not running the intended source.
 
@@ -95,6 +96,7 @@ Confirm:
 - boss HP bar fits
 - LOW FX reduces ambient clutter
 - attack telegraphs remain readable
+- runtime FPS does not collapse under normal Circle 1 combat density
 
 ## 6. One normal run
 

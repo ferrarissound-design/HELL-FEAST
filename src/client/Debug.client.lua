@@ -76,9 +76,22 @@ status.Font = Enum.Font.GothamBold
 status.TextSize = 11
 status.Parent = panel
 
+local runtime = Instance.new("TextLabel")
+runtime.Size = UDim2.new(1, -24, 0, 34)
+runtime.Position = UDim2.fromOffset(12, 62)
+runtime.BackgroundTransparency = 1
+runtime.Text = "FPS ? • DEMONS ? • SOULS ?"
+runtime.TextColor3 = Color3.fromRGB(176, 166, 180)
+runtime.TextWrapped = true
+runtime.TextXAlignment = Enum.TextXAlignment.Left
+runtime.TextYAlignment = Enum.TextYAlignment.Top
+runtime.Font = Enum.Font.Code
+runtime.TextSize = 10
+runtime.Parent = panel
+
 local scroll = Instance.new("ScrollingFrame")
-scroll.Position = UDim2.fromOffset(12, 72)
-scroll.Size = UDim2.new(1, -24, 1, -84)
+scroll.Position = UDim2.fromOffset(12, 98)
+scroll.Size = UDim2.new(1, -24, 1, -110)
 scroll.BackgroundTransparency = 1
 scroll.BorderSizePixel = 0
 scroll.ScrollBarThickness = 5
@@ -179,6 +192,47 @@ for _, attribute in ipairs({"BuildId", "QAStatus", "QAPassed", "QAFailed"}) do
 	Workspace:GetAttributeChangedSignal(attribute):Connect(refreshStatus)
 end
 refreshStatus()
+
+local frameCount = 0
+local fps = 0
+local secondStart = os.clock()
+
+RunService.RenderStepped:Connect(function()
+	frameCount += 1
+	local now = os.clock()
+	local elapsed = now - secondStart
+	if elapsed >= 1 then
+		fps = math.floor(frameCount / elapsed + 0.5)
+		frameCount = 0
+		secondStart = now
+	end
+end)
+
+task.spawn(function()
+	while gui.Parent do
+		local world = Workspace:FindFirstChild("HellFeastWorld")
+		local demons = world and world:FindFirstChild("Demons")
+		local souls = world and world:FindFirstChild("LostSouls")
+		local demonCount = demons and #demons:GetChildren() or 0
+		local soulCount = souls and #souls:GetChildren() or 0
+		local circle = Workspace:GetAttribute("Circle") or 1
+		local runState = Workspace:GetAttribute("RunState") or "?"
+		local fx = player:GetAttribute("SessionFXMode") or "AUTO"
+		local lowFx = player:GetAttribute("LowFX") == true and "LOW" or "FULL"
+
+		runtime.Text = string.format(
+			"FPS %d • D %d • S %d • C%d • %s • FX %s/%s",
+			fps,
+			demonCount,
+			soulCount,
+			circle,
+			runState,
+			fx,
+			lowFx
+		)
+		task.wait(0.5)
+	end
+end)
 
 toggle.Activated:Connect(function()
 	panel.Visible = not panel.Visible
