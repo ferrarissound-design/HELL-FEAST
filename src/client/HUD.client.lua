@@ -294,12 +294,15 @@ local function refresh()
 		player:GetAttribute("DamageMultiplier") or 1
 	)
 
+	local readOnly = player:GetAttribute("ProgressionReadOnly") == true
 	upgrades.Text = string.format(
-		"VITALITY %d   METABOLISM %d   BUTCHERY %d",
+		"VITALITY %d   METABOLISM %d   BUTCHERY %d%s",
 		player:GetAttribute("Upgrade_Vitality") or 0,
 		player:GetAttribute("Upgrade_Metabolism") or 0,
-		player:GetAttribute("Upgrade_Butchery") or 0
+		player:GetAttribute("Upgrade_Butchery") or 0,
+		readOnly and "   • SAVE READ-ONLY" or ""
 	)
+	upgrades.TextColor3 = readOnly and Color3.fromRGB(255, 135, 120) or Color3.fromRGB(205, 170, 140)
 
 	local equipped = {}
 	for _, slot in ipairs(slots) do
@@ -331,7 +334,7 @@ end
 
 for _, attribute in ipairs({
 	"Hunger", "MaxHunger", "Souls", "DemonDNA", "RunDNA", "Kills", "DamageMultiplier", "BestCircle",
-	"Upgrade_Vitality", "Upgrade_Metabolism", "Upgrade_Butchery", "DecisionVote",
+	"Upgrade_Vitality", "Upgrade_Metabolism", "Upgrade_Butchery", "DecisionVote", "ProgressionReadOnly",
 	"Part_HEAD", "Part_EYE", "Part_LEFT_ARM", "Part_RIGHT_ARM", "Part_LEGS", "Part_BACK",
 }) do
 	player:GetAttributeChangedSignal(attribute):Connect(refresh)
