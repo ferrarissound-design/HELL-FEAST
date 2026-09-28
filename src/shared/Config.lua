@@ -129,6 +129,17 @@ Config.Hazards = {
 }
 
 
+Config.Safety = {
+	SanctuaryRadius = 31,
+	SanctuaryDemonBuffer = 3,
+	ArrivalGraceSeconds = 6,
+	RecoveryMinY = -18,
+	RecoveryMaxAbsX = 174,
+	RecoveryMaxAbsZ = 174,
+	RecoveryCooldown = 4,
+}
+
+
 Config.HellBook = {
 	DemonOrder = {"Imp", "Brute", "Watcher", "FurnaceHound", "Crawler", "Butcher"},
 	PartOrder = {"ImpLegs", "BruteArm", "WatcherEye", "DemonHorn", "DemonWings", "ClawArm", "ButcherArm"},
