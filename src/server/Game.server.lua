@@ -640,6 +640,7 @@ local function createDemon(demonType, circle, forcedPosition)
 	model:SetAttribute("MaxHealth", maxHealth)
 	model:SetAttribute("LastHitUserId", 0)
 	model:SetAttribute("IsBoss", data.IsBoss == true)
+	model:SetAttribute("BossPhase", data.IsBoss and 1 or 0)
 	model.Parent = demonsFolder
 
 	local body = Instance.new("Part")
@@ -663,6 +664,15 @@ local function createDemon(demonType, circle, forcedPosition)
 	eye.Size = data.IsBoss and Vector3.new(1.6, 1.6, 1.6) or Vector3.new(0.8, 0.8, 0.8)
 	eye.CFrame = body.CFrame * CFrame.new(0, data.BodyScale.Y * 0.18, -data.BodyScale.Z * 0.52)
 	eye.Parent = model
+
+	if data.IsBoss then
+		local rageLight = Instance.new("PointLight")
+		rageLight.Name = "RageLight"
+		rageLight.Color = Color3.fromRGB(255, 90, 50)
+		rageLight.Range = 22
+		rageLight.Brightness = 1.2
+		rageLight.Parent = body
+	end
 
 	addDemonAccent(model, body, demonType)
 
@@ -689,6 +699,51 @@ local function createDemon(demonType, circle, forcedPosition)
 	healthConnection = model:GetAttributeChangedSignal("Health"):Connect(function()
 		local health = model:GetAttribute("Health") or 0
 		hpLabel.Text = string.format("%s  %d/%d", data.DisplayName, math.ceil(health), maxHealth)
+
+		if data.IsBoss and health > 0 and not dead then
+			local ratio = health / math.max(1, maxHealth)
+			local nextPhase = 1
+			if ratio <= Config.Butcher.PhaseThreeHealthRatio then
+				nextPhase = 3
+			elseif ratio <= Config.Butcher.PhaseTwoHealthRatio then
+				nextPhase = 2
+			end
+
+			local currentPhase = model:GetAttribute("BossPhase") or 1
+			if nextPhase > currentPhase then
+				model:SetAttribute("BossPhase", nextPhase)
+
+				if nextPhase == 2 then
+					body.Color = Color3.fromRGB(120, 30, 28)
+					eye.Color = Color3.fromRGB(255, 125, 45)
+					notifyAll("THE BUTCHER ENTERS PHASE II • THE KITCHEN OPENS")
+					feedbackAll("BOSS_PHASE", {Phase = 2})
+					task.defer(function()
+						if model.Parent and runActive then
+							createDemon("Imp", circle, body.Position + Vector3.new(-10, 0, 8))
+							createDemon("Imp", circle, body.Position + Vector3.new(10, 0, 8))
+						end
+					end)
+				elseif nextPhase == 3 then
+					body.Color = Color3.fromRGB(155, 22, 26)
+					body.Material = Enum.Material.Neon
+					eye.Color = Color3.fromRGB(255, 220, 70)
+					local rageLight = body:FindFirstChild("RageLight")
+					if rageLight and rageLight:IsA("PointLight") then
+						rageLight.Brightness = 3.2
+						rageLight.Range = 36
+						rageLight.Color = Color3.fromRGB(255, 45, 35)
+					end
+					notifyAll("THE BUTCHER IS FRENZIED • PHASE III")
+					feedbackAll("BOSS_PHASE", {Phase = 3})
+					task.defer(function()
+						if model.Parent and runActive then
+							createDemon("Brute", circle, body.Position + Vector3.new(0, 0, 12))
+						end
+					end)
+				end
+			end
+		end
 
 		if health > 0 or dead then
 			return
@@ -731,6 +786,7 @@ local function createDemon(demonType, circle, forcedPosition)
 	task.spawn(function()
 		local lastSlam = os.clock()
 		local lastSpecial = os.clock()
+		local lastCrossCut = os.clock()
 		model:SetAttribute("AttackBusy", false)
 		while model.Parent and not dead and runActive do
 			local targetPlayer, distance = nearestLivingPlayer(body.Position)
@@ -743,7 +799,16 @@ local function createDemon(demonType, circle, forcedPosition)
 					local delta = flatTarget - current
 
 					if delta.Magnitude > 0.01 and model:GetAttribute("AttackBusy") ~= true then
-						local step = math.min(data.WalkSpeed * 0.12, delta.Magnitude)
+						local speedMultiplier = 1
+						if data.IsBoss then
+							local phase = model:GetAttribute("BossPhase") or 1
+							if phase >= 3 then
+								speedMultiplier = Config.Butcher.PhaseThreeSpeedMultiplier
+							elseif phase >= 2 then
+								speedMultiplier = Config.Butcher.PhaseTwoSpeedMultiplier
+							end
+						end
+						local step = math.min(data.WalkSpeed * speedMultiplier * 0.12, delta.Magnitude)
 						local nextPosition = current + delta.Unit * step
 						model:PivotTo(CFrame.lookAt(nextPosition, flatTarget))
 					end
@@ -837,25 +902,87 @@ local function createDemon(demonType, circle, forcedPosition)
 				end
 			end
 
-			if data.IsBoss and os.clock() - lastSlam >= 7 and model:GetAttribute("AttackBusy") ~= true then
-				lastSlam = os.clock()
-				model:SetAttribute("AttackBusy", true)
-				local slamPosition = Vector3.new(body.Position.X, 3, body.Position.Z)
-				feedbackAll("TELEGRAPH_CIRCLE", {
-					Position = slamPosition,
-					Radius = 28,
-					Duration = 1.25,
-					Tone = "BUTCHER",
-				})
-				notifyAll("BUTCHER SLAM • MOVE!")
-				task.delay(1.25, function()
-					if model.Parent and runActive then
-						damagePlayersInRadius(slamPosition, 28, damage * 0.7, "BUTCHER_SLAM")
+			if data.IsBoss then
+				local phase = model:GetAttribute("BossPhase") or 1
+				local slamCooldown = 7
+				local slamRadius = 28
+				local slamWarning = 1.25
+				if phase >= 3 then
+					slamCooldown = Config.Butcher.PhaseThreeSlamCooldown
+					slamRadius = 32
+					slamWarning = 0.9
+				elseif phase >= 2 then
+					slamCooldown = Config.Butcher.PhaseTwoSlamCooldown
+					slamRadius = 30
+					slamWarning = 1.05
+				end
+
+				if phase >= 2 and os.clock() - lastCrossCut >= (phase >= 3 and Config.Butcher.FrenzyCrossCutCooldown or Config.Butcher.CrossCutCooldown) and model:GetAttribute("AttackBusy") ~= true then
+					lastCrossCut = os.clock()
+					model:SetAttribute("AttackBusy", true)
+
+					local center = Vector3.new(body.Position.X, 3, body.Position.Z)
+					local forward = Vector3.new(body.CFrame.LookVector.X, 0, body.CFrame.LookVector.Z)
+					if forward.Magnitude < 0.1 then
+						forward = Vector3.new(0, 0, -1)
+					else
+						forward = forward.Unit
 					end
-					if model.Parent then
-						model:SetAttribute("AttackBusy", false)
-					end
-				end)
+					local right = Vector3.new(-forward.Z, 0, forward.X)
+					local range = Config.Butcher.CrossCutRange
+
+					local lineAStart = center - forward * range
+					local lineAEnd = center + forward * range
+					local lineBStart = center - right * range
+					local lineBEnd = center + right * range
+					local warning = phase >= 3 and 0.72 or 0.9
+
+					feedbackAll("TELEGRAPH_LINE", {
+						Start = lineAStart,
+						Finish = lineAEnd,
+						Width = Config.Butcher.CrossCutWidth,
+						Duration = warning,
+						Tone = "BUTCHER",
+					})
+					feedbackAll("TELEGRAPH_LINE", {
+						Start = lineBStart,
+						Finish = lineBEnd,
+						Width = Config.Butcher.CrossCutWidth,
+						Duration = warning,
+						Tone = "BUTCHER",
+					})
+					notifyAll(phase >= 3 and "FRENZY CROSS-CUT!" or "BUTCHER CROSS-CUT!")
+
+					task.delay(warning, function()
+						if model.Parent and runActive then
+							local cutDamage = damage * Config.Butcher.CrossCutDamageMultiplier
+							damagePlayersAlongSegment(lineAStart, lineAEnd, Config.Butcher.CrossCutWidth, cutDamage, "BUTCHER_CROSS")
+							damagePlayersAlongSegment(lineBStart, lineBEnd, Config.Butcher.CrossCutWidth, cutDamage, "BUTCHER_CROSS")
+						end
+						if model.Parent then
+							model:SetAttribute("AttackBusy", false)
+						end
+					end)
+				elseif os.clock() - lastSlam >= slamCooldown and model:GetAttribute("AttackBusy") ~= true then
+					lastSlam = os.clock()
+					model:SetAttribute("AttackBusy", true)
+					local slamPosition = Vector3.new(body.Position.X, 3, body.Position.Z)
+					feedbackAll("TELEGRAPH_CIRCLE", {
+						Position = slamPosition,
+						Radius = slamRadius,
+						Duration = slamWarning,
+						Tone = "BUTCHER",
+					})
+					notifyAll(phase >= 3 and "FRENZY SLAM • DASH!" or "BUTCHER SLAM • MOVE!")
+					task.delay(slamWarning, function()
+						if model.Parent and runActive then
+							damagePlayersInRadius(slamPosition, slamRadius, damage * (phase >= 3 and 0.82 or 0.7), "BUTCHER_SLAM")
+						end
+						if model.Parent then
+							model:SetAttribute("AttackBusy", false)
+						end
+					end)
+				end
 			end
 
 			task.wait(0.12)
