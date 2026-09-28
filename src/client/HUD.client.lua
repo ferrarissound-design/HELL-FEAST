@@ -276,7 +276,14 @@ local function refresh()
 	local timeLeft = Workspace:GetAttribute("RunTimeLeft") or 0
 	local circle = Workspace:GetAttribute("Circle") or 1
 	timer.Text = state .. "  " .. formatTime(timeLeft)
-	circleLabel.Text = string.format("CIRCLE %d / %d    BEST: %d", circle, Config.MaxCircle, player:GetAttribute("BestCircle") or 0)
+	local directorMode = Workspace:GetAttribute("DirectorMode") or "STALK"
+	circleLabel.Text = string.format(
+		"CIRCLE %d / %d    BEST: %d    HELL: %s",
+		circle,
+		Config.MaxCircle,
+		player:GetAttribute("BestCircle") or 0,
+		directorMode
+	)
 
 	stats.Text = string.format(
 		"Souls: %d     Banked DNA: %d\nUnbanked DNA: %d     Kills: %d     Power: x%.2f",
@@ -330,7 +337,7 @@ for _, attribute in ipairs({
 	player:GetAttributeChangedSignal(attribute):Connect(refresh)
 end
 
-for _, attribute in ipairs({"RunState", "RunTimeLeft", "Circle", "DecisionOpen"}) do
+for _, attribute in ipairs({"RunState", "RunTimeLeft", "Circle", "DecisionOpen", "DirectorMode"}) do
 	Workspace:GetAttributeChangedSignal(attribute):Connect(refresh)
 end
 
