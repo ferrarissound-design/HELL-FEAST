@@ -794,6 +794,12 @@ local function createDemon(demonType, circle, forcedPosition)
 
 		dropPart(body.Position, dropName)
 
+		feedbackAll("DEMON_DEATH", {
+			Position = body.Position,
+			DemonType = demonType,
+			IsBoss = data.IsBoss == true,
+		})
+
 		if data.IsBoss then
 			circleBossDefeated = true
 			Workspace:SetAttribute("BossAlive", false)
@@ -1029,6 +1035,22 @@ local function createLostSoul(forcedPosition)
 	root.Parent = model
 	model.PrimaryPart = root
 
+	local soulLight = Instance.new("PointLight")
+	soulLight.Name = "SoulLight"
+	soulLight.Color = Color3.fromRGB(160, 145, 220)
+	soulLight.Range = 14
+	soulLight.Brightness = 1.4
+	soulLight.Parent = root
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "SoulHighlight"
+	highlight.FillColor = Color3.fromRGB(150, 135, 215)
+	highlight.FillTransparency = 0.62
+	highlight.OutlineColor = Color3.fromRGB(220, 215, 255)
+	highlight.OutlineTransparency = 0.35
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = model
+
 	local head = Instance.new("Part")
 	head.Name = "Head"
 	head.Anchored = true
@@ -1055,9 +1077,11 @@ local function createLostSoul(forcedPosition)
 		end
 
 		captured = true
+		local capturePosition = root.Position
 		player:SetAttribute("Souls", (player:GetAttribute("Souls") or 0) + 1)
 		player:SetAttribute("SoulsCaptured", (player:GetAttribute("SoulsCaptured") or 0) + 1)
 		notify(player, "Lost Soul captured. Take it to HELL KITCHEN.")
+		feedback(player, "SOUL_CAPTURE", {Position = capturePosition})
 		model:Destroy()
 	end)
 end
