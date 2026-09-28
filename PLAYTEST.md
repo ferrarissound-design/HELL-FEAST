@@ -2,7 +2,7 @@
 
 Use the **DEV PANEL** in Roblox Studio to test systems without waiting through a full run. The panel and debug commands are disabled outside Studio.
 
-Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-02** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
+Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-03** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
 
 Also watch the DEV PANEL runtime line during tests. It reports FPS, active demons, active Lost Souls, Circle, run state, and the effective FX mode.
 
@@ -18,7 +18,8 @@ Also watch the DEV PANEL runtime line during tests. It reports FPS, active demon
    - Furnace Hound shows a charge lane.
    - Bone Crawler reduces hunger when it hits.
 5. Graft at least three different parts and verify the avatar changes and stats update.
-6. Add **+3 Lost Souls**, return to HELL KITCHEN, and test all three recipes.
+6. Add **+3 Lost Souls**, return to HELL KITCHEN, confirm recipe costs / effects are readable, and test all three recipes.
+   - confirm VITALITY / METABOLISM / BUTCHERY shrines show their effect and starting DNA cost
 7. Set Hunger low naturally or continue playing long enough to verify hunger warnings and starvation behavior.
 8. Take damage and confirm the custom HEALTH bar updates immediately.
 9. Raise VITALITY and confirm the HEALTH maximum updates.
