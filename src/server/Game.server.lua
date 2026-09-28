@@ -33,12 +33,17 @@ local feedbackRemote = remotes:FindFirstChild("Feedback") or Instance.new("Remot
 feedbackRemote.Name = "Feedback"
 feedbackRemote.Parent = remotes
 
+local dashRemote = remotes:FindFirstChild("Dash") or Instance.new("RemoteEvent")
+dashRemote.Name = "Dash"
+dashRemote.Parent = remotes
+
 local runActive = false
 local decisionOpen = false
 local currentRunId = 0
 local currentCircle = 1
 local circleBossDefeated = false
 local lastAttackAt = {}
+local lastDashAt = {}
 local hazardTouchAt = {}
 local votes = {}
 
@@ -169,6 +174,52 @@ end
 local function clampHungerFor(player, value)
 	return math.clamp(value, 0, maxHungerFor(player))
 end
+
+
+dashRemote.OnServerEvent:Connect(function(player, requestedDirection)
+	if not runActive then
+		return
+	end
+
+	local now = os.clock()
+	if now - (lastDashAt[player] or 0) < Config.Movement.DashCooldown then
+		return
+	end
+
+	local character, humanoid = getCharacterHumanoid(player)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	local hunger = player:GetAttribute("Hunger") or 0
+	if hunger < Config.Movement.DashHungerCost then
+		notify(player, "Too hungry to dash.")
+		return
+	end
+
+	local direction
+	if typeof(requestedDirection) == "Vector3" then
+		direction = Vector3.new(requestedDirection.X, 0, requestedDirection.Z)
+	end
+	if not direction or direction.Magnitude < 0.1 then
+		local look = root.CFrame.LookVector
+		direction = Vector3.new(look.X, 0, look.Z)
+	end
+	if direction.Magnitude < 0.1 then
+		return
+	end
+
+	direction = direction.Unit
+	lastDashAt[player] = now
+	player:SetAttribute("Hunger", clampHungerFor(player, hunger - Config.Movement.DashHungerCost))
+	root.AssemblyLinearVelocity = Vector3.new(
+		direction.X * Config.Movement.DashSpeed,
+		root.AssemblyLinearVelocity.Y,
+		direction.Z * Config.Movement.DashSpeed
+	)
+	feedback(player, "DASH", {Cooldown = Config.Movement.DashCooldown})
+end)
 
 local function clearPartVisuals(character)
 	for _, child in ipairs(character:GetChildren()) do
@@ -1024,6 +1075,7 @@ Players.PlayerAdded:Connect(setupPlayer)
 Players.PlayerRemoving:Connect(function(player)
 	savePlayer(player)
 	lastAttackAt[player] = nil
+	lastDashAt[player] = nil
 	hazardTouchAt[player] = nil
 	votes[player.UserId] = nil
 end)
