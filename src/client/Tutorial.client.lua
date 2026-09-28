@@ -19,6 +19,7 @@ gui.DisplayOrder = 15
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local card = Instance.new("Frame")
+card.Name = "TutorialCard"
 card.AnchorPoint = Vector2.new(0, 1)
 card.Position = UDim2.new(0, 18, 1, -82)
 card.Size = UDim2.fromOffset(330, 92)
