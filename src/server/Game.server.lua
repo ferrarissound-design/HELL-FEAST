@@ -799,7 +799,9 @@ local function createDemon(demonType, circle, forcedPosition)
 	local body = Instance.new("Part")
 	body.Name = "Body"
 	body.Anchored = true
-	body.CanCollide = true
+	-- Demons use server distance checks for combat. Keeping teleported anchored bodies
+	-- non-collidable avoids trapping or flinging player characters.
+	body.CanCollide = false
 	body.Material = data.IsBoss and Enum.Material.CrackedLava or Enum.Material.Slate
 	body.Color = bodyColorFor(demonType)
 	body.Size = data.BodyScale
