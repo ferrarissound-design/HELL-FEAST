@@ -97,7 +97,9 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 	accumulator = 0
 
-	if not cleaverEquipped() or player:GetAttribute("InSanctuary") == true then
+	local state = Workspace:GetAttribute("RunState")
+	local combatActive = state == "HELL RUN" or state == "BOSS"
+	if not combatActive or not cleaverEquipped() or player:GetAttribute("InSanctuary") == true then
 		highlight.Enabled = false
 		highlight.Adornee = nil
 		return
