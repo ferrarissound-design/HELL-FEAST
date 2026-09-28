@@ -1302,6 +1302,7 @@ local function resetPlayerForNewRun(player)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
 	player:SetAttribute("DecisionVote", "")
+	player:SetAttribute("DecisionEligible", false)
 	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 	player:SetAttribute("InSanctuary", true)
 
@@ -1352,6 +1353,7 @@ local function setupPlayer(player)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
 	player:SetAttribute("DecisionVote", "")
+	player:SetAttribute("DecisionEligible", false)
 	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 	player:SetAttribute("InSanctuary", true)
 	player:SetAttribute("SaveWarningShown", false)
@@ -1802,6 +1804,7 @@ local function conductDecision()
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		decisionEligible[player.UserId] = true
+		player:SetAttribute("DecisionEligible", true)
 		player:SetAttribute("DecisionVote", "")
 	end
 	updateDecisionTallies()
@@ -1819,10 +1822,15 @@ local function conductDecision()
 	decisionOpen = false
 	Workspace:SetAttribute("DecisionOpen", false)
 
-	local _, _, escapeVotes, descendVotes = updateDecisionTallies()
+	local voted, eligible, escapeVotes, descendVotes = updateDecisionTallies()
+	local effectiveEscapeVotes = escapeVotes + math.max(0, eligible - voted)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		player:SetAttribute("DecisionEligible", false)
+	end
 	decisionEligible = {}
 
-	if descendVotes > escapeVotes then
+	if descendVotes > effectiveEscapeVotes then
 		return "DESCEND"
 	end
 	return "ESCAPE"
@@ -1955,6 +1963,9 @@ local function runLoop()
 		runActive = false
 		decisionOpen = false
 		decisionEligible = {}
+		for _, player in ipairs(Players:GetPlayers()) do
+			player:SetAttribute("DecisionEligible", false)
+		end
 		Workspace:SetAttribute("DecisionOpen", false)
 		Workspace:SetAttribute("DecisionEscapeVotes", 0)
 		Workspace:SetAttribute("DecisionDescendVotes", 0)
