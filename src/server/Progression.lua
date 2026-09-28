@@ -62,13 +62,31 @@ local function copyDiscovery(source, keys)
 	return result
 end
 
+
+local function waitForSaveSlot(key)
+	local deadline = os.clock() + SAVE_LOCK_TIMEOUT_SECONDS
+	while saveBusy[key] do
+		if os.clock() >= deadline then
+			return false
+		end
+		task.wait(SAVE_LOCK_POLL_SECONDS)
+	end
+	return true
+end
+
 function Progression.Load(player, config)
 	local profile = cloneDefaults()
 	local loaded = false
+	local key = tostring(player.UserId)
 
-	local ok, data = pcall(function()
-		return PROFILE_STORE:GetAsync(tostring(player.UserId))
-	end)
+	local slotReady = waitForSaveSlot(key)
+	local ok = false
+	local data
+	if slotReady then
+		ok, data = pcall(function()
+			return PROFILE_STORE:GetAsync(key)
+		end)
+	end
 
 	local profileReadSucceeded = ok and (data == nil or type(data) == "table")
 
@@ -167,12 +185,8 @@ function Progression.Save(player)
 	end
 
 	local key = tostring(player.UserId)
-	local deadline = os.clock() + SAVE_LOCK_TIMEOUT_SECONDS
-	while saveBusy[key] do
-		if os.clock() >= deadline then
-			return false, "Timed out waiting for an earlier profile save."
-		end
-		task.wait(SAVE_LOCK_POLL_SECONDS)
+	if not waitForSaveSlot(key) then
+		return false, "Timed out waiting for an earlier profile save."
 	end
 
 	saveBusy[key] = true
