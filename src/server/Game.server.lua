@@ -1361,7 +1361,7 @@ local function directorModeFor(pressure)
 	if pressure >= 0.74 then
 		return "HUNT"
 	elseif pressure <= 0.34 then
-		return "MERCY"
+		return "QUIET"
 	end
 	return "STALK"
 end
@@ -1428,7 +1428,7 @@ task.spawn(function()
 				local spawnPosition = root.Position + Vector3.new(right.X, 0, right.Z) * 14
 				createLostSoul(Vector3.new(spawnPosition.X, 3, spawnPosition.Z))
 				lastEmergencySoulAt = now
-				notify(snapshot.HungriestPlayer, "HELL relents • a Lost Soul surfaced nearby.")
+				notify(snapshot.HungriestPlayer, "A Lost Soul surfaced nearby.")
 			end
 		end
 	end
