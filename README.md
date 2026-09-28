@@ -126,6 +126,7 @@ Project file: `default.project.json`
 
 The playable build now also includes:
 
+- explicit custom HEALTH bar alongside HUNGER
 - first-run objective onboarding
 - hit markers and floating damage numbers
 - local damage flashes
@@ -205,6 +206,8 @@ Public-session safeguards now protect the parts most likely to create a bad firs
 - falling below the map or leaving the arena automatically returns the player to HELL KITCHEN
 - profile load failures switch permanent progression into read-only mode instead of saving default data over an unknown profile
 - saves retry before reporting failure
+- confirmed profiles periodically autosave during long sessions
+- legacy Demon DNA migration failures also switch the session read-only instead of guessing zero
 - the HUD clearly shows **SAVE READ-ONLY** when permanent progression is unavailable
 
 ## Studio playtest tools

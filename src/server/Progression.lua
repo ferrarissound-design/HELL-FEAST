@@ -68,9 +68,6 @@ function Progression.Load(player, config)
 	end)
 
 	local profileReadSucceeded = ok and (data == nil or type(data) == "table")
-	player:SetAttribute("ProfileReady", profileReadSucceeded)
-	player:SetAttribute("ProgressionReadOnly", not profileReadSucceeded)
-	player:SetAttribute("SaveFailureCount", 0)
 
 	if ok and type(data) == "table" then
 		loaded = true
@@ -90,13 +87,21 @@ function Progression.Load(player, config)
 			profile.Discovery.Demons = copyDiscovery(data.Discovery.Demons, DEMON_KEYS)
 			profile.Discovery.Parts = copyDiscovery(data.Discovery.Parts, PART_KEYS)
 		end
+	elseif ok and data == nil then
+		local legacyOk, legacyDNA = pcall(function()
+			return LEGACY_DNA_STORE:GetAsync(tostring(player.UserId))
+		end)
+
+		if legacyOk then
+			profile.DemonDNA = tonumber(legacyDNA) or 0
+		else
+			profileReadSucceeded = false
+		end
 	end
 
-	if not loaded then
-		pcall(function()
-			profile.DemonDNA = tonumber(LEGACY_DNA_STORE:GetAsync(tostring(player.UserId))) or 0
-		end)
-	end
+	player:SetAttribute("ProfileReady", profileReadSucceeded)
+	player:SetAttribute("ProgressionReadOnly", not profileReadSucceeded)
+	player:SetAttribute("SaveFailureCount", 0)
 
 	player:SetAttribute("DemonDNA", profile.DemonDNA)
 	player:SetAttribute("BestCircle", profile.BestCircle)

@@ -57,7 +57,7 @@ local function apply()
 		end
 		if nav then
 			if tiny then
-				nav.Position = UDim2.new(0.5, 0, 0, 168)
+				nav.Position = UDim2.new(0.5, 0, 0, 198)
 			else
 				nav.Position = UDim2.new(0.5, 0, 0, 12)
 			end
@@ -69,7 +69,7 @@ local function apply()
 			alertScale.Scale = tiny and 0.82 or compact and 0.92 or 1
 		end
 		if alert then
-			alert.Position = tiny and UDim2.new(0.5, 0, 0, 226) or UDim2.new(0.5, 0, 0, 90)
+			alert.Position = tiny and UDim2.new(0.5, 0, 0, 256) or UDim2.new(0.5, 0, 0, 90)
 		end
 
 		local zone = navigation:FindFirstChild("ZoneBanner")
@@ -133,6 +133,18 @@ local function apply()
 		end
 		if boss and tiny then
 			boss.Position = UDim2.new(0.5, 0, 0, 86)
+		end
+	end
+
+	local tutorialGui = playerGui:FindFirstChild("HellFeastTutorial")
+	if tutorialGui then
+		local tutorialCard = tutorialGui:FindFirstChild("TutorialCard")
+		local tutorialScale = ensureScale(tutorialCard, "ResponsiveScale")
+		if tutorialScale then
+			tutorialScale.Scale = tiny and 0.78 or compact and 0.90 or 1
+		end
+		if tutorialCard and tiny then
+			tutorialCard.Position = UDim2.new(0, 10, 1, -76)
 		end
 	end
 

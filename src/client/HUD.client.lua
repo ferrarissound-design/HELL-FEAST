@@ -24,7 +24,7 @@ end
 
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
-panel.Size = UDim2.fromOffset(340, 224)
+panel.Size = UDim2.fromOffset(340, 252)
 panel.Position = UDim2.fromOffset(16, 16)
 panel.BackgroundColor3 = Color3.fromRGB(27, 17, 22)
 panel.BackgroundTransparency = 0.10
@@ -69,45 +69,71 @@ circleLabel.Font = Enum.Font.GothamBold
 circleLabel.TextSize = 14
 circleLabel.Parent = panel
 
+local healthText = Instance.new("TextLabel")
+healthText.Size = UDim2.new(1, -20, 0, 20)
+healthText.Position = UDim2.fromOffset(10, 64)
+healthText.BackgroundTransparency = 1
+healthText.TextColor3 = Color3.fromRGB(235, 220, 216)
+healthText.TextXAlignment = Enum.TextXAlignment.Left
+healthText.Font = Enum.Font.GothamBold
+healthText.TextSize = 14
+healthText.Text = "HEALTH"
+healthText.Parent = panel
+
+local healthBack = Instance.new("Frame")
+healthBack.Size = UDim2.new(1, -20, 0, 14)
+healthBack.Position = UDim2.fromOffset(10, 86)
+healthBack.BackgroundColor3 = Color3.fromRGB(58, 40, 44)
+healthBack.BorderSizePixel = 0
+healthBack.Parent = panel
+rounded(healthBack, 7)
+
+local healthFill = Instance.new("Frame")
+healthFill.Size = UDim2.fromScale(1, 1)
+healthFill.BackgroundColor3 = Color3.fromRGB(188, 72, 70)
+healthFill.BorderSizePixel = 0
+healthFill.Parent = healthBack
+rounded(healthFill, 7)
+
 local hungerText = Instance.new("TextLabel")
-hungerText.Size = UDim2.new(1, -20, 0, 24)
-hungerText.Position = UDim2.fromOffset(10, 64)
+hungerText.Size = UDim2.new(1, -20, 0, 20)
+hungerText.Position = UDim2.fromOffset(10, 105)
 hungerText.BackgroundTransparency = 1
 hungerText.TextColor3 = Color3.fromRGB(245, 225, 205)
 hungerText.TextXAlignment = Enum.TextXAlignment.Left
 hungerText.Font = Enum.Font.GothamBold
-hungerText.TextSize = 16
+hungerText.TextSize = 14
 hungerText.Parent = panel
 
 local hungerBack = Instance.new("Frame")
-hungerBack.Size = UDim2.new(1, -20, 0, 18)
-hungerBack.Position = UDim2.fromOffset(10, 89)
+hungerBack.Size = UDim2.new(1, -20, 0, 14)
+hungerBack.Position = UDim2.fromOffset(10, 127)
 hungerBack.BackgroundColor3 = Color3.fromRGB(62, 43, 42)
 hungerBack.BorderSizePixel = 0
 hungerBack.Parent = panel
-rounded(hungerBack, 9)
+rounded(hungerBack, 7)
 
 local hungerFill = Instance.new("Frame")
 hungerFill.Size = UDim2.fromScale(1, 1)
 hungerFill.BackgroundColor3 = Color3.fromRGB(235, 111, 62)
 hungerFill.BorderSizePixel = 0
 hungerFill.Parent = hungerBack
-rounded(hungerFill, 9)
+rounded(hungerFill, 7)
 
 local stats = Instance.new("TextLabel")
-stats.Size = UDim2.new(1, -20, 0, 48)
-stats.Position = UDim2.fromOffset(10, 116)
+stats.Size = UDim2.new(1, -20, 0, 42)
+stats.Position = UDim2.fromOffset(10, 150)
 stats.BackgroundTransparency = 1
 stats.TextColor3 = Color3.fromRGB(220, 210, 205)
 stats.TextXAlignment = Enum.TextXAlignment.Left
 stats.TextYAlignment = Enum.TextYAlignment.Top
 stats.Font = Enum.Font.GothamMedium
-stats.TextSize = 14
+stats.TextSize = 13
 stats.Parent = panel
 
 local upgrades = Instance.new("TextLabel")
 upgrades.Size = UDim2.new(1, -20, 0, 22)
-upgrades.Position = UDim2.fromOffset(10, 164)
+upgrades.Position = UDim2.fromOffset(10, 194)
 upgrades.BackgroundTransparency = 1
 upgrades.TextColor3 = Color3.fromRGB(205, 170, 140)
 upgrades.TextXAlignment = Enum.TextXAlignment.Left
@@ -117,7 +143,7 @@ upgrades.Parent = panel
 
 local parts = Instance.new("TextLabel")
 parts.Size = UDim2.new(1, -20, 0, 34)
-parts.Position = UDim2.fromOffset(10, 187)
+parts.Position = UDim2.fromOffset(10, 216)
 parts.BackgroundTransparency = 1
 parts.TextColor3 = Color3.fromRGB(188, 154, 205)
 parts.TextWrapped = true
@@ -267,6 +293,18 @@ end
 local slots = {"HEAD", "EYE", "LEFT_ARM", "RIGHT_ARM", "LEGS", "BACK"}
 
 local function refresh()
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local health = humanoid and humanoid.Health or 0
+	local maxHealth = humanoid and humanoid.MaxHealth or 100
+	healthText.Text = string.format("HEALTH  %d / %d", math.ceil(health), math.ceil(maxHealth))
+	healthFill.Size = UDim2.fromScale(math.clamp(health / math.max(1, maxHealth), 0, 1), 1)
+	if health / math.max(1, maxHealth) <= 0.30 then
+		healthFill.BackgroundColor3 = Color3.fromRGB(225, 62, 62)
+	else
+		healthFill.BackgroundColor3 = Color3.fromRGB(188, 72, 70)
+	end
+
 	local hunger = player:GetAttribute("Hunger") or Config.Hunger.Max
 	local maxHunger = player:GetAttribute("MaxHunger") or Config.Hunger.Max
 	hungerText.Text = string.format("HUNGER  %d / %d", math.floor(hunger + 0.5), maxHunger)
@@ -371,6 +409,30 @@ for _, attribute in ipairs({
 	"DecisionEscapeVotes", "DecisionDescendVotes", "DecisionEligible",
 }) do
 	Workspace:GetAttributeChangedSignal(attribute):Connect(refresh)
+end
+
+local healthConnections = {}
+
+local function bindHealth(character)
+	for _, connection in ipairs(healthConnections) do
+		connection:Disconnect()
+	end
+	table.clear(healthConnections)
+
+	local humanoid = character:WaitForChild("Humanoid", 8)
+	if not humanoid then
+		refresh()
+		return
+	end
+
+	table.insert(healthConnections, humanoid.HealthChanged:Connect(refresh))
+	table.insert(healthConnections, humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(refresh))
+	refresh()
+end
+
+player.CharacterAdded:Connect(bindHealth)
+if player.Character then
+	task.spawn(bindHealth, player.Character)
 end
 
 refresh()

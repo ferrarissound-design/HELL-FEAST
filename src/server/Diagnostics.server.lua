@@ -55,6 +55,8 @@ check(type(Config.Combat.AssistAngleDegrees) == "number" and Config.Combat.Assis
 check(type(Config.Combat.CloseAssistRange) == "number" and Config.Combat.CloseAssistRange > 0 and Config.Combat.CloseAssistRange <= Config.Combat.AttackRange, "melee close-assist range is valid")
 check(type(Config.Combat.AttackLungeSpeed) == "number" and Config.Combat.AttackLungeSpeed >= 0, "melee lunge speed is valid")
 
+check(type(Config.Persistence.AutoSaveSeconds) == "number" and Config.Persistence.AutoSaveSeconds >= 60, "autosave interval is valid")
+
 check(type(Config.Safety.SanctuaryRadius) == "number" and Config.Safety.SanctuaryRadius > 20, "sanctuary radius is valid")
 check(type(Config.Safety.ArrivalGraceSeconds) == "number" and Config.Safety.ArrivalGraceSeconds >= 3, "arrival grace is valid")
 check(Config.Safety.RecoveryMinY < 0, "out-of-bounds Y threshold is valid")

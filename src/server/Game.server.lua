@@ -1447,6 +1447,17 @@ end)
 
 task.spawn(function()
 	while true do
+		task.wait(Config.Persistence.AutoSaveSeconds)
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player:GetAttribute("ProfileReady") == true and player:GetAttribute("ProgressionReadOnly") ~= true then
+				savePlayer(player)
+			end
+		end
+	end
+end)
+
+task.spawn(function()
+	while true do
 		task.wait(0.5)
 		for _, player in ipairs(Players:GetPlayers()) do
 			local character, humanoid = getCharacterHumanoid(player)
