@@ -101,7 +101,16 @@ local function cameraKick()
 	end)
 end
 
+local function combatActive()
+	local state = Workspace:GetAttribute("RunState")
+	return state == "HELL RUN" or state == "BOSS"
+end
+
 local function tryDash()
+	if not combatActive() then
+		return
+	end
+
 	local now = os.clock()
 	if now < readyAt then
 		return
@@ -150,7 +159,11 @@ end)
 task.spawn(function()
 	while gui.Parent do
 		local remaining = readyAt - os.clock()
-		if remaining > 0 then
+		if not combatActive() then
+			button.Text = "WAIT"
+			button.BackgroundTransparency = 0.42
+			button.AutoButtonColor = false
+		elseif remaining > 0 then
 			button.Text = string.format("%.1f", remaining)
 			button.BackgroundTransparency = 0.34
 			button.AutoButtonColor = false
