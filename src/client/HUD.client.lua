@@ -277,12 +277,10 @@ notifyRemote.OnClientEvent:Connect(showNotice)
 
 escapeButton.Activated:Connect(function()
 	decisionVoteRemote:FireServer("ESCAPE")
-	voteStatus.Text = "VOTED: ESCAPE"
 end)
 
 descendButton.Activated:Connect(function()
 	decisionVoteRemote:FireServer("DESCEND")
-	voteStatus.Text = "VOTED: DESCEND"
 end)
 
 local function formatTime(seconds)
