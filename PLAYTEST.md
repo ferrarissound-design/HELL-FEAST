@@ -41,6 +41,26 @@ Repeat the boss test after selecting Circle 1, 2, and 3.
 
 Check that deeper circles visibly change atmosphere and that enemies become harder.
 
+
+## Hell Director pacing test
+
+Run one normal Circle without using debug spawns.
+
+Watch the HUD value after `HELL:`:
+
+- **QUIET** should appear when the player is badly hurt or low on food.
+- **STALK** should cover normal exploration.
+- **HUNT** should appear later in a healthy / upgraded run.
+
+Verify:
+
+- enemy density grows when the player is healthy and grafted
+- enemy spawning eases when health and hunger collapse
+- multiplayer increases the enemy cap
+- a starving player with zero carried Souls can receive an emergency nearby Lost Soul
+- the emergency Soul does not repeat constantly
+- THE BUTCHER phase is not polluted by normal Director demon spawns
+
 ## Progression test
 
 During a run:
