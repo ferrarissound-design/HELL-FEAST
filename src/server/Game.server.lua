@@ -1088,6 +1088,8 @@ local function createDemon(demonType, circle, forcedPosition)
 					local current = body.Position
 					local flatTarget = Vector3.new(targetRoot.Position.X, current.Y, targetRoot.Position.Z)
 					local delta = flatTarget - current
+					local attackPathClear = delta.Magnitude > 0.01
+						and directionIsClear(model, body, delta, math.max(0.1, distance), character)
 
 					if delta.Magnitude > 0.01 and model:GetAttribute("AttackBusy") ~= true then
 						local speedMultiplier = 1
@@ -1110,6 +1112,7 @@ local function createDemon(demonType, circle, forcedPosition)
 					end
 
 					if distance <= data.AttackRange
+						and attackPathClear
 						and os.clock() - lastDemonAttack >= data.AttackCooldown
 						and model:GetAttribute("AttackBusy") ~= true then
 
@@ -1154,7 +1157,10 @@ local function createDemon(demonType, circle, forcedPosition)
 						end
 					end
 
-					if demonType == "Watcher" and distance > 8 and distance <= 30 and os.clock() - lastSpecial >= 4.2 and model:GetAttribute("AttackBusy") ~= true then
+					if demonType == "Watcher" and distance > 8 and distance <= 30
+						and attackPathClear
+						and os.clock() - lastSpecial >= 4.2
+						and model:GetAttribute("AttackBusy") ~= true then
 						lastSpecial = os.clock()
 						model:SetAttribute("AttackBusy", true)
 						local targetPosition = Vector3.new(targetRoot.Position.X, targetRoot.Position.Y, targetRoot.Position.Z)
@@ -1172,7 +1178,10 @@ local function createDemon(demonType, circle, forcedPosition)
 								model:SetAttribute("AttackBusy", false)
 							end
 						end)
-					elseif demonType == "FurnaceHound" and distance > 7 and distance <= 32 and os.clock() - lastSpecial >= 5 and model:GetAttribute("AttackBusy") ~= true then
+					elseif demonType == "FurnaceHound" and distance > 7 and distance <= 32
+						and attackPathClear
+						and os.clock() - lastSpecial >= 5
+						and model:GetAttribute("AttackBusy") ~= true then
 						lastSpecial = os.clock()
 						model:SetAttribute("AttackBusy", true)
 						local startPosition = Vector3.new(body.Position.X, targetRoot.Position.Y, body.Position.Z)
