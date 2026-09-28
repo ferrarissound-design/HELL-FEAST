@@ -1510,8 +1510,23 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 game:BindToClose(function()
-	for _, player in ipairs(Players:GetPlayers()) do
-		Progression.Save(player)
+	local closingPlayers = Players:GetPlayers()
+	local pending = #closingPlayers
+
+	for _, player in ipairs(closingPlayers) do
+		task.spawn(function()
+			Progression.Save(player)
+			pending -= 1
+		end)
+	end
+
+	local deadline = os.clock() + 8
+	while pending > 0 and os.clock() < deadline do
+		task.wait(0.1)
+	end
+
+	if pending > 0 then
+		warn(string.format("[HELL FEAST] Shutdown save window ended with %d profile(s) still pending.", pending))
 	end
 end)
 
