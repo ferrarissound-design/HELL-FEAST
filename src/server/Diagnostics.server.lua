@@ -11,6 +11,10 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local passed = 0
 local failed = 0
 
+Workspace:SetAttribute("QAStatus", "RUNNING")
+Workspace:SetAttribute("QAPassed", 0)
+Workspace:SetAttribute("QAFailed", 0)
+
 local function check(condition, message)
 	if condition then
 		passed += 1
@@ -22,6 +26,9 @@ local function check(condition, message)
 end
 
 task.wait(1)
+
+check(type(Config.BuildId) == "string" and Config.BuildId ~= "", "release build ID exists")
+check(Workspace:GetAttribute("BuildId") == Config.BuildId, "Workspace build ID matches Config")
 
 for demonKey, demon in pairs(Config.Demons) do
 	check(type(demon.DisplayName) == "string" and demon.DisplayName ~= "", demonKey .. " has DisplayName")
@@ -91,8 +98,13 @@ if remotes then
 	end
 end
 
+Workspace:SetAttribute("QAPassed", passed)
+Workspace:SetAttribute("QAFailed", failed)
+Workspace:SetAttribute("QAStatus", failed == 0 and "PASS" or "FAIL")
+Workspace:SetAttribute("QASummary", string.format("%d passed • %d failed", passed, failed))
+
 if failed == 0 then
-	print(string.format("[HELL FEAST QA] ALL CHECKS PASSED • %d checks", passed))
+	print(string.format("[HELL FEAST QA] ALL CHECKS PASSED • %d checks • %s", passed, Config.BuildId))
 else
-	warn(string.format("[HELL FEAST QA] COMPLETE • %d passed • %d failed", passed, failed))
+	warn(string.format("[HELL FEAST QA] COMPLETE • %d passed • %d failed • %s", passed, failed, Config.BuildId))
 end
