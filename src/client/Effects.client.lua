@@ -109,6 +109,8 @@ bossFillCorner.CornerRadius = UDim.new(1, 0)
 bossFillCorner.Parent = bossFill
 
 
+local fullPulse
+
 local phaseBanner = Instance.new("TextLabel")
 phaseBanner.AnchorPoint = Vector2.new(0.5, 0.5)
 phaseBanner.Position = UDim2.fromScale(0.5, 0.34)
@@ -203,7 +205,7 @@ local function floatingDamage(position, amount, isBoss)
 	Debris:AddItem(anchor, 0.65)
 end
 
-local function fullPulse(color)
+fullPulse = function(color)
 	pulse.BackgroundColor3 = color
 	pulse.BackgroundTransparency = 0.78
 	TweenService:Create(pulse, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
