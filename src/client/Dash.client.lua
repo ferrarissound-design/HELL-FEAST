@@ -136,9 +136,16 @@ local function tryDash()
 	dashRemote:FireServer(direction)
 	cameraKick()
 
-	button.Size = UDim2.fromOffset(104, 104)
+	local restSize = button.Size
+	local pulseSize = UDim2.new(
+		restSize.X.Scale,
+		restSize.X.Offset + 12,
+		restSize.Y.Scale,
+		restSize.Y.Offset + 12
+	)
+	button.Size = pulseSize
 	TweenService:Create(button, TweenInfo.new(0.14, Enum.EasingStyle.Back), {
-		Size = UDim2.fromOffset(92, 92),
+		Size = restSize,
 	}):Play()
 end
 
