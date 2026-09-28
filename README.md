@@ -217,7 +217,9 @@ When running inside Roblox Studio, a **DEV PANEL** is available for rapid QA. It
 
 The server independently rejects all debug commands outside Studio. A Studio-only startup diagnostic also checks configuration references, HELL BOOK entries, world folders, recipes and remotes.
 
-See `PLAYTEST.md` for the fast test sequence.
+See `PLAYTEST.md` for the full test matrix and `RELEASE.md` for the short publish gate.
+
+The current release candidate identifies itself in Studio as **HF-RC-20260929-01**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
 
 ## Next polish targets
 

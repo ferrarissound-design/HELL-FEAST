@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 if not RunService:IsStudio() then
 	return
@@ -52,7 +53,7 @@ panelStroke.Transparency = 0.15
 panelStroke.Parent = panel
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -24, 0, 40)
+title.Size = UDim2.new(1, -24, 0, 28)
 title.Position = UDim2.fromOffset(12, 8)
 title.BackgroundTransparency = 1
 title.Text = "HELL FEAST • STUDIO QA"
@@ -62,9 +63,22 @@ title.Font = Enum.Font.GothamBlack
 title.TextSize = 16
 title.Parent = panel
 
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -24, 0, 34)
+status.Position = UDim2.fromOffset(12, 34)
+status.BackgroundTransparency = 1
+status.Text = "BUILD ? • QA WAITING"
+status.TextColor3 = Color3.fromRGB(195, 177, 190)
+status.TextWrapped = true
+status.TextXAlignment = Enum.TextXAlignment.Left
+status.TextYAlignment = Enum.TextYAlignment.Top
+status.Font = Enum.Font.GothamBold
+status.TextSize = 11
+status.Parent = panel
+
 local scroll = Instance.new("ScrollingFrame")
-scroll.Position = UDim2.fromOffset(12, 52)
-scroll.Size = UDim2.new(1, -24, 1, -64)
+scroll.Position = UDim2.fromOffset(12, 72)
+scroll.Size = UDim2.new(1, -24, 1, -84)
 scroll.BackgroundTransparency = 1
 scroll.BorderSizePixel = 0
 scroll.ScrollBarThickness = 5
@@ -109,9 +123,13 @@ local function button(text, action, payload)
 	end)
 end
 
-section("PLAYER")
+section("PLAYER / FAILURE TESTS")
 button("Restore HP + Hunger", "HEAL_FEED")
+button("Set Hunger → 10", "LOW_HUNGER")
 button("+3 Lost Souls", "SOULS")
+button("Kill Player", "KILL_SELF")
+button("Test OOB Recovery", "OOB_TEST")
+button("Save Profile Now", "SAVE_NOW")
 button("Teleport → HELL KITCHEN", "TP_KITCHEN")
 button("Teleport → SLAUGHTER PIT", "TP_BOSS")
 
@@ -122,6 +140,7 @@ button("Circle 3", "CIRCLE", 3)
 button("Spawn THE BUTCHER Now", "BOSS_NOW")
 button("Force Butcher Phase II", "PHASE_2")
 button("Force Butcher Phase III", "PHASE_3")
+button("Set Butcher → 1 HP", "BOSS_1HP")
 button("Clear Demons / Souls / Drops", "CLEAR")
 
 section("SPAWN DEMONS")
@@ -139,6 +158,27 @@ button("Graft Demon Horn", "GRAFT", "DemonHorn")
 button("Graft Demon Wings", "GRAFT", "DemonWings")
 button("Graft Claw Arm", "GRAFT", "ClawArm")
 button("Graft Butcher Arm", "GRAFT", "ButcherArm")
+
+local function refreshStatus()
+	local buildId = Workspace:GetAttribute("BuildId") or "?"
+	local qaStatus = Workspace:GetAttribute("QAStatus") or "WAITING"
+	local passed = Workspace:GetAttribute("QAPassed") or 0
+	local failed = Workspace:GetAttribute("QAFailed") or 0
+
+	status.Text = string.format("%s • QA %s • %d PASS / %d FAIL", buildId, qaStatus, passed, failed)
+	if qaStatus == "PASS" then
+		status.TextColor3 = Color3.fromRGB(145, 225, 165)
+	elseif qaStatus == "FAIL" then
+		status.TextColor3 = Color3.fromRGB(255, 120, 110)
+	else
+		status.TextColor3 = Color3.fromRGB(195, 177, 190)
+	end
+end
+
+for _, attribute in ipairs({"BuildId", "QAStatus", "QAPassed", "QAFailed"}) do
+	Workspace:GetAttributeChangedSignal(attribute):Connect(refreshStatus)
+end
+refreshStatus()
 
 toggle.Activated:Connect(function()
 	panel.Visible = not panel.Visible

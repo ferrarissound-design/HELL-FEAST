@@ -1,5 +1,7 @@
 local Config = {}
 
+Config.BuildId = "HF-RC-20260929-01"
+
 Config.RunDuration = 10 * 60
 Config.BossWindow = 90
 Config.DecisionDuration = 20
