@@ -34,6 +34,11 @@ Use the **DEV PANEL** in Roblox Studio to test systems without waiting through a
    - boss moves faster
    - slam and cross-cut cadence increases
 8. Kill the boss and verify ESCAPE / DESCEND appears.
+9. In solo play, vote once and confirm the decision resolves almost immediately instead of waiting the full timer.
+10. In a 2-player test, confirm live ESCAPE / DESCEND tallies update.
+11. Leave one eligible player unvoted and confirm the missing vote safely counts toward ESCAPE at timeout.
+12. Join after the decision already opened and confirm the late joiner cannot alter that decision.
+13. Choose DESCEND and confirm the player returns to HELL KITCHEN with grafts preserved before the next Circle begins.
 
 ## Circle scaling test
 
