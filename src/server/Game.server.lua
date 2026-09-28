@@ -52,6 +52,8 @@ local function notify(player, text)
 	notifyRemote:FireClient(player, text)
 end
 
+local getCharacterHumanoid
+
 local function feedback(player, kind, payload)
 	if player then
 		feedbackRemote:FireClient(player, kind, payload or {})
@@ -109,7 +111,7 @@ local function notifyAll(text)
 	end
 end
 
-local function getCharacterHumanoid(player)
+getCharacterHumanoid = function(player)
 	local character = player.Character
 	if not character then
 		return nil, nil
