@@ -51,6 +51,11 @@ for recipeKey, recipe in pairs(Config.Recipes) do
 	check(type(recipe.HungerRestore) == "number" and recipe.HungerRestore >= 0, recipeKey .. " has valid hunger restore")
 end
 
+check(type(Config.Director.TickSeconds) == "number" and Config.Director.TickSeconds > 0, "Hell Director tick is valid")
+check(Config.Director.SpawnIntervalFast < Config.Director.SpawnIntervalSlow, "Hell Director spawn interval range is ordered")
+check(Config.Director.MinPressure < Config.Director.MaxPressure, "Hell Director pressure range is ordered")
+check(Config.Director.EmergencySoulHungerRatio > 0 and Config.Director.EmergencySoulHungerRatio < 1, "Hell Director emergency hunger threshold is valid")
+
 local world = Workspace:WaitForChild("HellFeastWorld", 10)
 check(world ~= nil, "HellFeastWorld exists")
 
