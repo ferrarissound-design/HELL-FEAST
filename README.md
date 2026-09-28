@@ -47,6 +47,20 @@ The experience uses abstract Lost Souls and stylized transformations rather than
 - **SOUL BURGER**: hunger + health
 - **SINNER STEW**: slows hunger drain temporarily
 
+## HELL BOOK & run records
+
+Progress now leaves a permanent trail instead of disappearing between runs:
+
+- first demon kills unlock permanent HELL BOOK entries
+- first graft use unlocks permanent graft entries
+- undiscovered entries stay hidden as ???
+- discovered demons show their region and combat identity
+- discovered grafts show slot and gameplay modifiers
+- lifetime runs, kills, boss kills, best circle and discoveries persist
+- every finished run shows a result card with kills, Souls, meals, grafts, deaths, discoveries and banked Demon DNA
+
+The HELL BOOK can be opened from the in-game button at any time.
+
 ## Permanent upgrades
 
 Use the upgrade shrine in HELL KITCHEN:
