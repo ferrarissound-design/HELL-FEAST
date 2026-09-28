@@ -153,6 +153,20 @@ The client now adapts to smaller screens instead of assuming a desktop viewport:
 - automatic low-FX mode on touch / small viewports
 - reduced ash, death shards and Lost Soul update frequency on lower-power layouts
 
+## Accessibility & session polish
+
+A lightweight SETTINGS panel now lets each client adjust presentation without changing gameplay:
+
+- FX quality: AUTO / HIGH / LOW
+- reduced full-screen flashes
+- optional damage numbers
+- optional camera FOV motion
+- settings remain local to the current session
+- returning players no longer receive the FIRST DESCENT tutorial every session
+- death now shows a clear loss summary before respawn
+
+Combat telegraphs remain enabled regardless of flash settings because they communicate gameplay-critical danger.
+
 ## Environmental polish
 
 The generated world now has a stronger atmosphere without relying on custom art assets:

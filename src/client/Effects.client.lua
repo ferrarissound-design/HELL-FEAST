@@ -155,7 +155,10 @@ end
 
 local function flashDamage(strength)
 	strength = strength or 0.28
-	damageFlash.BackgroundTransparency = math.clamp(1 - strength, 0.5, 0.92)
+	if player:GetAttribute("ReducedFlashes") == true then
+		strength *= 0.35
+	end
+	damageFlash.BackgroundTransparency = math.clamp(1 - strength, 0.72, 0.96)
 	TweenService:Create(damageFlash, TweenInfo.new(0.32), {BackgroundTransparency = 1}):Play()
 end
 
@@ -170,6 +173,9 @@ local function showHitMarker(isBoss)
 end
 
 local function floatingDamage(position, amount, isBoss)
+	if player:GetAttribute("HideDamageNumbers") == true then
+		return
+	end
 	if typeof(position) ~= "Vector3" then
 		return
 	end
@@ -207,7 +213,7 @@ end
 
 fullPulse = function(color)
 	pulse.BackgroundColor3 = color
-	pulse.BackgroundTransparency = 0.78
+	pulse.BackgroundTransparency = player:GetAttribute("ReducedFlashes") == true and 0.94 or 0.78
 	TweenService:Create(pulse, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
 end
 

@@ -71,6 +71,8 @@ During a run:
 - verify the new entries are revealed
 - finish or escape the run
 - verify the result screen shows kills, Souls, meals, grafts, deaths, discoveries and banked DNA
+- start another session with TotalRuns > 0 and confirm FIRST DESCENT tutorial does not repeat
+- die during a run and confirm the death overlay clearly states graft / Soul / DNA loss
 
 Rejoin Play mode and verify persistent records when Studio DataStore access is enabled.
 
@@ -107,6 +109,11 @@ Verify:
 - ash / death effects are visibly lighter on touch devices
 - DEV PANEL is usable during Studio testing
 - interaction prompts are readable
+- SETTINGS opens and closes without covering critical combat controls
+- LOW / HIGH / AUTO FX settings visibly change ambient effect density
+- Reduced flashes weakens full-screen flashes without hiding attack telegraphs
+- Damage numbers can be disabled
+- Camera motion can be disabled while attack and dash gameplay still works
 
 ## Release safety test
 

@@ -78,6 +78,10 @@ local function getDirection()
 end
 
 local function cameraKick()
+	if player:GetAttribute("ReducedMotion") == true then
+		return
+	end
+
 	local camera = Workspace.CurrentCamera
 	if not camera then
 		return
