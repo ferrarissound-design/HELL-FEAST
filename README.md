@@ -59,17 +59,29 @@ Progress and banked Demon DNA persist through DataStore.
 
 ## World
 
-The place builds itself from code after Rojo sync:
+The place builds itself from code after Rojo sync.
 
-- HELL KITCHEN
+### Regions
+
+- **ASH FIELDS** — charred trees and mostly Imps
+- **BONE YARD** — bone formations, Brutes and deeper-circle Crawlers
+- **CINDER RUN** — Furnace Hounds and damaging lava cracks
+- **SOUL PENS** — Watchers and the highest concentration of Lost Souls
+- **HELL KITCHEN** — central safe landmark for food and permanent upgrades
+- **THE SLAUGHTER PIT** — boss destination for THE BUTCHER
+
+Glowing roads and beacons connect the central kitchen to each region. A mobile navigation HUD always points back to HELL KITCHEN, switches to THE BUTCHER during boss time, shows the current region, and warns when hunger becomes dangerous.
+
+The generated world also includes:
+
 - cooking stations
 - permanent upgrade shrine
-- THE SLAUGHTER PIT boss arena
 - bone pillars
 - Soul Cages
-- lava cracks
+- charred trees
+- damaging lava cracks
 - circle-specific lighting / atmosphere
-- demon, soul and graft spawning
+- region-biased demon and Lost Soul spawning
 
 ## Rojo setup
 

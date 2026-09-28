@@ -12,6 +12,7 @@ local world = World.Build()
 local demonsFolder = world:WaitForChild("Demons")
 local soulsFolder = world:WaitForChild("LostSouls")
 local dropsFolder = world:WaitForChild("Drops")
+local hazardsFolder = world:WaitForChild("Hazards")
 local kitchen = world:WaitForChild("HellKitchen")
 local stationsFolder = kitchen:WaitForChild("CookStations")
 local upgradePads = kitchen:WaitForChild("UpgradePads")
@@ -38,6 +39,7 @@ local currentRunId = 0
 local currentCircle = 1
 local circleBossDefeated = false
 local lastAttackAt = {}
+local hazardTouchAt = {}
 local votes = {}
 
 Workspace:SetAttribute("RunState", "BOOTING")
@@ -69,6 +71,43 @@ local function getCharacterHumanoid(player)
 	end
 	return character, character:FindFirstChildOfClass("Humanoid")
 end
+
+local function connectHazard(hazard)
+	if not hazard:IsA("BasePart") then
+		return
+	end
+
+	hazard.Touched:Connect(function(hit)
+		local character = hit:FindFirstAncestorOfClass("Model")
+		local player = character and Players:GetPlayerFromCharacter(character)
+		if not player then
+			return
+		end
+
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then
+			return
+		end
+
+		hazardTouchAt[player] = hazardTouchAt[player] or {}
+		local lastTouch = hazardTouchAt[player][hazard] or 0
+		local cooldown = hazard:GetAttribute("HazardCooldown") or Config.Hazards.LavaCooldown
+		local now = os.clock()
+		if now - lastTouch < cooldown then
+			return
+		end
+
+		hazardTouchAt[player][hazard] = now
+		local damage = hazard:GetAttribute("HazardDamage") or Config.Hazards.LavaDamage
+		humanoid:TakeDamage(damage)
+		feedback(player, "ENVIRONMENT_HIT", {Damage = damage})
+	end)
+end
+
+for _, hazard in ipairs(hazardsFolder:GetChildren()) do
+	connectHazard(hazard)
+end
+hazardsFolder.ChildAdded:Connect(connectHazard)
 
 local function maxHungerFor(player)
 	local level = player:GetAttribute("Upgrade_Metabolism") or 0
@@ -316,10 +355,30 @@ local function giveWeapon(player)
 	end)
 end
 
-local function randomArenaPosition()
+local demonRegions = {
+	Imp = "AshFields",
+	Brute = "BoneYard",
+	Watcher = "SoulPens",
+	FurnaceHound = "CinderRun",
+	Crawler = "BoneYard",
+}
+
+local regionKeys = {"AshFields", "BoneYard", "CinderRun", "SoulPens"}
+
+local function randomArenaPosition(regionKey)
+	local region = regionKey and Config.Regions[regionKey]
+	if not region then
+		regionKey = regionKeys[math.random(1, #regionKeys)]
+		region = Config.Regions[regionKey]
+	end
+
 	local angle = math.random() * math.pi * 2
-	local radius = Config.Spawning.SpawnRadiusMin + math.random() * (Config.Spawning.SpawnRadiusMax - Config.Spawning.SpawnRadiusMin)
-	return Vector3.new(math.cos(angle) * radius, 3, math.sin(angle) * radius)
+	local radius = math.sqrt(math.random()) * math.max(8, region.Radius - 7)
+	return Vector3.new(
+		region.Center.X + math.cos(angle) * radius,
+		3,
+		region.Center.Z + math.sin(angle) * radius
+	)
 end
 
 local function nearestLivingPlayer(position)
@@ -492,7 +551,7 @@ local function createDemon(demonType, circle, forcedPosition)
 	body.Material = data.IsBoss and Enum.Material.CrackedLava or Enum.Material.Slate
 	body.Color = bodyColorFor(demonType)
 	body.Size = data.BodyScale
-	body.Position = forcedPosition or randomArenaPosition()
+	body.Position = forcedPosition or randomArenaPosition(demonRegions[demonType])
 	body.Parent = model
 	model.PrimaryPart = body
 
@@ -656,7 +715,7 @@ local function createLostSoul()
 	root.Size = Vector3.new(2.3, 4.2, 2.0)
 	root.Material = Enum.Material.ForceField
 	root.Color = Color3.fromRGB(185, 190, 210)
-	root.Position = randomArenaPosition()
+	root.Position = math.random() < 0.68 and randomArenaPosition("SoulPens") or randomArenaPosition()
 	root.Parent = model
 	model.PrimaryPart = root
 
@@ -854,6 +913,7 @@ Players.PlayerAdded:Connect(setupPlayer)
 Players.PlayerRemoving:Connect(function(player)
 	savePlayer(player)
 	lastAttackAt[player] = nil
+	hazardTouchAt[player] = nil
 	votes[player.UserId] = nil
 end)
 

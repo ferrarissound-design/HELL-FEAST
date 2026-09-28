@@ -37,6 +37,50 @@ Config.Spawning = {
 	SpawnRadiusMax = 135,
 }
 
+
+Config.Regions = {
+	AshFields = {
+		DisplayName = "ASH FIELDS",
+		Center = Vector3.new(-82, 0, -34),
+		Radius = 48,
+		Color = Color3.fromRGB(72, 58, 58),
+		PrimaryDemon = "Imp",
+	},
+	BoneYard = {
+		DisplayName = "BONE YARD",
+		Center = Vector3.new(-78, 0, 72),
+		Radius = 46,
+		Color = Color3.fromRGB(76, 72, 62),
+		PrimaryDemon = "Brute",
+	},
+	CinderRun = {
+		DisplayName = "CINDER RUN",
+		Center = Vector3.new(82, 0, 72),
+		Radius = 46,
+		Color = Color3.fromRGB(86, 48, 34),
+		PrimaryDemon = "FurnaceHound",
+	},
+	SoulPens = {
+		DisplayName = "SOUL PENS",
+		Center = Vector3.new(84, 0, -34),
+		Radius = 48,
+		Color = Color3.fromRGB(58, 50, 82),
+		PrimaryDemon = "Watcher",
+	},
+}
+
+Config.Navigation = {
+	KitchenPosition = Vector3.new(0, 3, 0),
+	BossPosition = Vector3.new(0, 6, -108),
+	LowHungerThreshold = 35,
+	CriticalHungerThreshold = 15,
+}
+
+Config.Hazards = {
+	LavaDamage = 12,
+	LavaCooldown = 1.1,
+}
+
 Config.Demons = {
 	Imp = {
 		DisplayName = "Imp",
