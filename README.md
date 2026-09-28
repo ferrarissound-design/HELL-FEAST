@@ -154,6 +154,7 @@ The playable build now also includes:
 The client now adapts to smaller screens instead of assuming a desktop viewport:
 
 - responsive HUD, navigation, boss bar, HELL BOOK and results scaling
+- live OBJECTIVE guidance that reacts to hunger, Souls, graft state, boss phase, intermission and escape/descend decisions
 - mobile DASH placement above standard touch controls
 - keyboard-only hints hidden on touch
 - directional melee target assist
@@ -221,7 +222,7 @@ The server independently rejects all debug commands outside Studio. A Studio-onl
 
 See `PLAYTEST.md` for the full test matrix and `RELEASE.md` for the short publish gate.
 
-The current release candidate identifies itself in Studio as **HF-RC-20260929-03**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
+The current release candidate identifies itself in Studio as **HF-RC-20260929-04**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
 
 DEV PANEL also shows live **FPS, demon count, Lost Soul count, Circle, run state, and FX mode** so performance or spawn-density problems can be spotted during the same smoke test.
 
