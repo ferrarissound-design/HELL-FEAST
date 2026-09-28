@@ -199,6 +199,19 @@ It considers current Circle, run progress, living player count, health, hunger a
 
 The HUD exposes only the atmospheric state **QUIET / STALK / HUNT**, not the underlying assistance math.
 
+## Runtime watchdog & remote guards
+
+RC-05 adds a lightweight server watchdog for clear soft-lock states:
+
+- respawns THE BUTCHER if the boss state is active but the boss model disappears
+- restores one demon if an active non-boss hunt stays empty while a vulnerable player is outside SANCTUARY
+- forces overdue uncast decision votes toward the existing safe default, ESCAPE
+- records recovery count and the last recovery reason in Workspace for Studio QA
+
+Custom client remotes are also server-validated and rate-limited. Invalid dash vectors, invalid vote payloads, rapid duplicate requests, and invalid Studio debug actions are ignored rather than trusted.
+
+DEV PANEL exposes **WD** recovery count/status and **SEC** rejected-request count.
+
 ## Release safety
 
 Public-session safeguards now protect the parts most likely to create a bad first impression or progression loss:
@@ -222,7 +235,7 @@ The server independently rejects all debug commands outside Studio. A Studio-onl
 
 See `PLAYTEST.md` for the full test matrix and `RELEASE.md` for the short publish gate.
 
-The current release candidate identifies itself in Studio as **HF-RC-20260929-04**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
+The current release candidate identifies itself in Studio as **HF-RC-20260929-05**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
 
 DEV PANEL also shows live **FPS, demon count, Lost Soul count, Circle, run state, and FX mode** so performance or spawn-density problems can be spotted during the same smoke test.
 
