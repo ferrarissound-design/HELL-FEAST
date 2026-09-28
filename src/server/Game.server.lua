@@ -52,8 +52,10 @@ local lastDashAt = {}
 local hazardTouchAt = {}
 local lastRecoveryAt = {}
 local lastSanctuaryNoticeAt = {}
+local remoteLastAt = {}
 local votes = {}
 local decisionEligible = {}
+local decisionStartedAt = nil
 
 Workspace:SetAttribute("BuildId", Config.BuildId)
 Workspace:SetAttribute("RunState", "BOOTING")
@@ -65,6 +67,10 @@ Workspace:SetAttribute("DecisionEscapeVotes", 0)
 Workspace:SetAttribute("DecisionDescendVotes", 0)
 Workspace:SetAttribute("DecisionVoted", 0)
 Workspace:SetAttribute("DecisionEligible", 0)
+Workspace:SetAttribute("WatchdogStatus", "OK")
+Workspace:SetAttribute("WatchdogRecoveries", 0)
+Workspace:SetAttribute("WatchdogLastRecovery", "")
+Workspace:SetAttribute("SecurityRejects", 0)
 
 local function notify(player, text)
 	notifyRemote:FireClient(player, text)
@@ -162,6 +168,46 @@ isPlayerProtected = function(player, root)
 	return Workspace:GetServerTimeNow() < (player:GetAttribute("ArrivalProtectedUntil") or 0)
 end
 
+
+local function finiteNumber(value)
+	return type(value) == "number"
+		and value == value
+		and value > -math.huge
+		and value < math.huge
+end
+
+local function rejectRemote(player, remoteName)
+	local rejects = (player:GetAttribute("SecurityRejects") or 0) + 1
+	player:SetAttribute("SecurityRejects", rejects)
+	Workspace:SetAttribute("SecurityRejects", (Workspace:GetAttribute("SecurityRejects") or 0) + 1)
+
+	if RunService:IsStudio() and rejects <= 5 then
+		warn(string.format("[HELL FEAST SECURITY] rejected %s from %s", remoteName, player.Name))
+	end
+end
+
+local function allowRemote(player, key, minInterval)
+	if not player or player.Parent ~= Players then
+		return false
+	end
+
+	local now = os.clock()
+	local state = remoteLastAt[player]
+	if not state then
+		state = {}
+		remoteLastAt[player] = state
+	end
+
+	local last = state[key] or 0
+	if now - last < minInterval then
+		rejectRemote(player, key .. ":rate")
+		return false
+	end
+
+	state[key] = now
+	return true
+end
+
 local function connectHazard(hazard)
 	if not hazard:IsA("BasePart") then
 		return
@@ -215,7 +261,23 @@ end
 
 
 dashRemote.OnServerEvent:Connect(function(player, requestedDirection)
+	if not allowRemote(player, "Dash", Config.Security.DashRemoteMinInterval) then
+		return
+	end
 	if not runActive then
+		return
+	end
+	if typeof(requestedDirection) ~= "Vector3"
+		or not finiteNumber(requestedDirection.X)
+		or not finiteNumber(requestedDirection.Y)
+		or not finiteNumber(requestedDirection.Z) then
+		rejectRemote(player, "Dash:payload")
+		return
+	end
+
+	local magnitude = requestedDirection.Magnitude
+	if magnitude < 0.05 or magnitude > Config.Security.MaxClientDirectionMagnitude then
+		rejectRemote(player, "Dash:magnitude")
 		return
 	end
 
@@ -236,15 +298,9 @@ dashRemote.OnServerEvent:Connect(function(player, requestedDirection)
 		return
 	end
 
-	local direction
-	if typeof(requestedDirection) == "Vector3" then
-		direction = Vector3.new(requestedDirection.X, 0, requestedDirection.Z)
-	end
-	if not direction or direction.Magnitude < 0.1 then
-		local look = root.CFrame.LookVector
-		direction = Vector3.new(look.X, 0, look.Z)
-	end
-	if direction.Magnitude < 0.1 then
+	local direction = Vector3.new(requestedDirection.X, 0, requestedDirection.Z)
+	if direction.Magnitude < 0.05 then
+		rejectRemote(player, "Dash:flat")
 		return
 	end
 
@@ -1333,16 +1389,19 @@ local function updateDecisionTallies()
 end
 
 decisionVoteRemote.OnServerEvent:Connect(function(player, choice)
+	if not allowRemote(player, "DecisionVote", Config.Security.DecisionRemoteMinInterval) then
+		return
+	end
+	if type(choice) ~= "string" or (choice ~= "ESCAPE" and choice ~= "DESCEND") then
+		rejectRemote(player, "DecisionVote:payload")
+		return
+	end
 	if not decisionOpen then
 		return
 	end
 
 	if decisionEligible[player.UserId] ~= true then
 		notify(player, "Decision already underway • you will follow the group.")
-		return
-	end
-
-	if choice ~= "ESCAPE" and choice ~= "DESCEND" then
 		return
 	end
 
@@ -1498,6 +1557,7 @@ Players.PlayerRemoving:Connect(function(player)
 	hazardTouchAt[player] = nil
 	lastRecoveryAt[player] = nil
 	lastSanctuaryNoticeAt[player] = nil
+	remoteLastAt[player] = nil
 	votes[player.UserId] = nil
 	decisionEligible[player.UserId] = nil
 	if decisionOpen then
@@ -1783,8 +1843,54 @@ local function findBoss()
 	return nil
 end
 
+local DEBUG_ACTIONS = {
+	HEAL_FEED = true,
+	SOULS = true,
+	GRAFT = true,
+	SPAWN = true,
+	BOSS_NOW = true,
+	PHASE_2 = true,
+	PHASE_3 = true,
+	BOSS_1HP = true,
+	LOW_HUNGER = true,
+	KILL_SELF = true,
+	OOB_TEST = true,
+	SAVE_NOW = true,
+	CIRCLE = true,
+	TP_KITCHEN = true,
+	TP_BOSS = true,
+	CLEAR = true,
+	WD_DROP_BOSS = true,
+	WD_EMPTY_RUN = true,
+	WD_STALE_DECISION = true,
+}
+
 debugRemote.OnServerEvent:Connect(function(player, action, payload)
 	if not RunService:IsStudio() then
+		return
+	end
+	if not allowRemote(player, "DebugCommand", Config.Security.DebugRemoteMinInterval) then
+		return
+	end
+	if type(action) ~= "string" or DEBUG_ACTIONS[action] ~= true then
+		rejectRemote(player, "DebugCommand:action")
+		return
+	end
+	if action == "GRAFT" and (type(payload) ~= "string" or not Config.Parts[payload]) then
+		rejectRemote(player, "DebugCommand:graft")
+		return
+	end
+	if action == "SPAWN" and (type(payload) ~= "string" or not Config.Demons[payload] or Config.Demons[payload].IsBoss) then
+		rejectRemote(player, "DebugCommand:spawn")
+		return
+	end
+	if action == "CIRCLE" and (
+		not finiteNumber(payload)
+		or payload < 1
+		or payload > Config.MaxCircle
+		or payload % 1 ~= 0
+	) then
+		rejectRemote(player, "DebugCommand:circle")
 		return
 	end
 
@@ -1798,10 +1904,10 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 	elseif action == "SOULS" then
 		player:SetAttribute("Souls", (player:GetAttribute("Souls") or 0) + 3)
 		notify(player, "DEBUG • +3 Lost Souls.")
-	elseif action == "GRAFT" and type(payload) == "string" and Config.Parts[payload] then
+	elseif action == "GRAFT" then
 		equipPart(player, payload)
 		notify(player, "DEBUG • grafted " .. Config.Parts[payload].DisplayName)
-	elseif action == "SPAWN" and type(payload) == "string" and Config.Demons[payload] and not Config.Demons[payload].IsBoss then
+	elseif action == "SPAWN" then
 		if not runActive then
 			notify(player, "DEBUG • wait for HELL RUN to start.")
 			return
@@ -1878,8 +1984,8 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 		else
 			notify(player, "DEBUG • profile save blocked/failed: " .. tostring(err))
 		end
-	elseif action == "CIRCLE" and type(payload) == "number" then
-		currentCircle = math.clamp(math.floor(payload), 1, Config.MaxCircle)
+	elseif action == "CIRCLE" then
+		currentCircle = payload
 		Workspace:SetAttribute("Circle", currentCircle)
 		World.ApplyCircleStyle(currentCircle)
 		notifyAll(string.format("DEBUG • switched to Circle %d.", currentCircle))
@@ -1894,6 +2000,118 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 		clearRunEntities(true)
 		Workspace:SetAttribute("BossAlive", false)
 		notify(player, "DEBUG • entities cleared.")
+	elseif action == "WD_DROP_BOSS" then
+		local boss = findBoss()
+		if boss and Workspace:GetAttribute("RunState") == "BOSS" then
+			boss:Destroy()
+			Workspace:SetAttribute("BossAlive", true)
+			notify(player, "DEBUG • boss removed; watchdog should restore it.")
+		else
+			notify(player, "DEBUG • enter a boss fight first.")
+		end
+	elseif action == "WD_EMPTY_RUN" then
+		if runActive and Workspace:GetAttribute("RunState") == "HELL RUN" then
+			clearFolder(demonsFolder)
+			notify(player, "DEBUG • active hunt emptied; watchdog should restore it.")
+		else
+			notify(player, "DEBUG • use during HELL RUN.")
+		end
+	elseif action == "WD_STALE_DECISION" then
+		if decisionOpen and decisionStartedAt then
+			decisionStartedAt = os.clock() - Config.DecisionDuration - Config.Watchdog.DecisionOvertimeSeconds - 1
+			notify(player, "DEBUG • decision marked overdue; watchdog should resolve it safely.")
+		else
+			notify(player, "DEBUG • open ESCAPE / DESCEND first.")
+		end
+	end
+end)
+
+local function recordWatchdogRecovery(reason)
+	local recoveries = (Workspace:GetAttribute("WatchdogRecoveries") or 0) + 1
+	Workspace:SetAttribute("WatchdogRecoveries", recoveries)
+	Workspace:SetAttribute("WatchdogStatus", "RECOVERED")
+	Workspace:SetAttribute("WatchdogLastRecovery", reason)
+	warn(string.format("[HELL FEAST WATCHDOG] recovery #%d • %s", recoveries, reason))
+
+	task.delay(6, function()
+		if Workspace:GetAttribute("WatchdogLastRecovery") == reason then
+			Workspace:SetAttribute("WatchdogStatus", "OK")
+		end
+	end)
+end
+
+task.spawn(function()
+	local bossMissingSince = nil
+	local emptyRunSince = nil
+	local lastWatchdogRecoveryAt = 0
+
+	while true do
+		task.wait(Config.Watchdog.TickSeconds)
+
+		local now = os.clock()
+		local state = Workspace:GetAttribute("RunState") or ""
+
+		if runActive
+			and state == "BOSS"
+			and Workspace:GetAttribute("BossAlive") == true
+			and not circleBossDefeated then
+
+			local boss = findBoss()
+			if boss then
+				bossMissingSince = nil
+			else
+				bossMissingSince = bossMissingSince or now
+				if now - bossMissingSince >= Config.Watchdog.BossMissingGraceSeconds
+					and now - lastWatchdogRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+
+					lastWatchdogRecoveryAt = now
+					bossMissingSince = nil
+					createDemon("Butcher", currentCircle, Config.Navigation.BossPosition)
+					feedbackAll("BOSS_SPAWN", {Circle = currentCircle})
+					recordWatchdogRecovery("respawned missing THE BUTCHER")
+				end
+			end
+		else
+			bossMissingSince = nil
+		end
+
+		if runActive and state == "HELL RUN" then
+			local snapshot = directorSnapshot()
+			if snapshot.Living > 0 and #demonsFolder:GetChildren() == 0 then
+				emptyRunSince = emptyRunSince or now
+				if now - emptyRunSince >= Config.Watchdog.EmptyRunGraceSeconds
+					and now - lastWatchdogRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+
+					lastWatchdogRecoveryAt = now
+					emptyRunSince = nil
+					createDemon(chooseDemonType(currentCircle), currentCircle)
+					recordWatchdogRecovery("restored an empty active hunt")
+				end
+			else
+				emptyRunSince = nil
+			end
+		else
+			emptyRunSince = nil
+		end
+
+		if decisionOpen and decisionStartedAt
+			and now - decisionStartedAt >= Config.DecisionDuration + Config.Watchdog.DecisionOvertimeSeconds
+			and now - lastWatchdogRecoveryAt >= Config.Watchdog.RecoveryCooldownSeconds then
+
+			local changed = false
+			for userId in pairs(decisionEligible) do
+				if votes[userId] ~= "ESCAPE" and votes[userId] ~= "DESCEND" then
+					votes[userId] = "ESCAPE"
+					changed = true
+				end
+			end
+
+			if changed then
+				lastWatchdogRecoveryAt = now
+				updateDecisionTallies()
+				recordWatchdogRecovery("forced overdue decision toward ESCAPE")
+			end
+		end
 	end
 end)
 
@@ -1929,6 +2147,7 @@ end
 
 local function conductDecision()
 	decisionOpen = true
+	decisionStartedAt = os.clock()
 	votes = {}
 	decisionEligible = {}
 	Workspace:SetAttribute("DecisionOpen", true)
@@ -1952,6 +2171,7 @@ local function conductDecision()
 	end
 
 	decisionOpen = false
+	decisionStartedAt = nil
 	Workspace:SetAttribute("DecisionOpen", false)
 
 	local voted, eligible, escapeVotes, descendVotes = updateDecisionTallies()

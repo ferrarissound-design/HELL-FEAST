@@ -2,7 +2,7 @@
 
 Release candidate build:
 
-`HF-RC-20260929-04`
+`HF-RC-20260929-05`
 
 This checklist is intentionally short. If a step fails, fix that failure before publishing.
 
@@ -21,7 +21,7 @@ Expected after the release-gate PR is merged:
 - `git status` is clean
 - Roblox Studio connects through Rojo
 - Play mode shows **DEV PANEL**
-- DEV PANEL shows build **HF-RC-20260929-04**
+- DEV PANEL shows build **HF-RC-20260929-05**
 - DEV PANEL shows **QA PASS** with zero failed checks
 - DEV PANEL runtime line shows plausible FPS / demon / Soul counts and updates while playing
 
@@ -83,7 +83,25 @@ Confirm:
 - DESCEND returns the player to HELL KITCHEN with grafts preserved
 - the next Circle starts normally
 
-## 5. Phone gate
+## 5. Watchdog / remote-guard gate
+
+Use the DEV PANEL watchdog/security section:
+
+1. Start THE BUTCHER, then press **WD: Remove Active Boss**.
+   - after the configured grace, THE BUTCHER should respawn
+   - WD recovery count should increase
+2. During normal HELL RUN, press **WD: Empty Active Hunt** while outside SANCTUARY.
+   - a demon should be restored after the empty-run grace
+   - WD count should increase again
+3. Open ESCAPE / DESCEND and press **WD: Expire Open Decision** before voting.
+   - overdue missing votes should resolve toward ESCAPE
+4. Press **SEC: Send Invalid Dash** and **SEC: Send Invalid Vote**.
+   - SEC rejected-request count should increase
+   - no movement, vote, or server error should occur
+
+Normal play should leave WD at 0 and SEC at 0 unless you deliberately run these tests or double-fire a guarded control extremely quickly.
+
+## 6. Phone gate
 
 Use Studio device emulation.
 
@@ -100,7 +118,7 @@ Confirm:
 - attack telegraphs remain readable
 - runtime FPS does not collapse under normal Circle 1 combat density
 
-## 6. One normal run
+## 7. One normal run
 
 After the debug smoke tests, restart Play mode and do one normal Circle without DEV shortcuts.
 
@@ -128,3 +146,5 @@ Write down anything irritating, confusing, unfair, visually broken, or slow. Tho
 - player can become stranded outside the arena
 - progression load failure can overwrite stored data
 - critical UI is unusable on phone
+- Watchdog recovery loops repeatedly during normal play
+- invalid remote payloads can change gameplay state

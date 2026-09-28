@@ -29,6 +29,8 @@ task.wait(1)
 
 check(type(Config.BuildId) == "string" and Config.BuildId ~= "", "release build ID exists")
 check(Workspace:GetAttribute("BuildId") == Config.BuildId, "Workspace build ID matches Config")
+check(type(Workspace:GetAttribute("WatchdogRecoveries")) == "number", "watchdog recovery telemetry exists")
+check(type(Workspace:GetAttribute("SecurityRejects")) == "number", "security rejection telemetry exists")
 
 for demonKey, demon in pairs(Config.Demons) do
 	check(type(demon.DisplayName) == "string" and demon.DisplayName ~= "", demonKey .. " has DisplayName")
@@ -74,6 +76,18 @@ check(type(Config.DemonMovement.AvoidAngleDegrees) == "number" and Config.DemonM
 check(type(Config.DemonMovement.AvoidProbeDistance) == "number" and Config.DemonMovement.AvoidProbeDistance > 0, "demon avoid probe is valid")
 
 check(type(Config.Persistence.AutoSaveSeconds) == "number" and Config.Persistence.AutoSaveSeconds >= 60, "autosave interval is valid")
+
+
+check(type(Config.Security.DashRemoteMinInterval) == "number" and Config.Security.DashRemoteMinInterval > 0, "dash remote rate guard is valid")
+check(type(Config.Security.DecisionRemoteMinInterval) == "number" and Config.Security.DecisionRemoteMinInterval > 0, "decision remote rate guard is valid")
+check(type(Config.Security.DebugRemoteMinInterval) == "number" and Config.Security.DebugRemoteMinInterval > 0, "debug remote rate guard is valid")
+check(type(Config.Security.MaxClientDirectionMagnitude) == "number" and Config.Security.MaxClientDirectionMagnitude >= 1, "client direction magnitude limit is valid")
+
+check(type(Config.Watchdog.TickSeconds) == "number" and Config.Watchdog.TickSeconds > 0, "watchdog tick is valid")
+check(type(Config.Watchdog.BossMissingGraceSeconds) == "number" and Config.Watchdog.BossMissingGraceSeconds >= Config.Watchdog.TickSeconds, "watchdog boss grace is valid")
+check(type(Config.Watchdog.EmptyRunGraceSeconds) == "number" and Config.Watchdog.EmptyRunGraceSeconds >= Config.Watchdog.TickSeconds, "watchdog empty-run grace is valid")
+check(type(Config.Watchdog.DecisionOvertimeSeconds) == "number" and Config.Watchdog.DecisionOvertimeSeconds > 0, "watchdog decision overtime is valid")
+check(type(Config.Watchdog.RecoveryCooldownSeconds) == "number" and Config.Watchdog.RecoveryCooldownSeconds > 0, "watchdog recovery cooldown is valid")
 
 check(type(Config.Safety.SanctuaryRadius) == "number" and Config.Safety.SanctuaryRadius > 20, "sanctuary radius is valid")
 check(type(Config.Safety.ArrivalGraceSeconds) == "number" and Config.Safety.ArrivalGraceSeconds >= 3, "arrival grace is valid")

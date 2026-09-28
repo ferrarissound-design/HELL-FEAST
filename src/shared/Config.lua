@@ -1,6 +1,6 @@
 local Config = {}
 
-Config.BuildId = "HF-RC-20260929-04"
+Config.BuildId = "HF-RC-20260929-05"
 
 Config.RunDuration = 10 * 60
 Config.BossWindow = 90
@@ -151,6 +151,22 @@ Config.Safety = {
 
 Config.Persistence = {
 	AutoSaveSeconds = 120,
+}
+
+
+Config.Security = {
+	DashRemoteMinInterval = 0.08,
+	DecisionRemoteMinInterval = 0.15,
+	DebugRemoteMinInterval = 0.06,
+	MaxClientDirectionMagnitude = 1.5,
+}
+
+Config.Watchdog = {
+	TickSeconds = 2,
+	BossMissingGraceSeconds = 5,
+	EmptyRunGraceSeconds = 8,
+	DecisionOvertimeSeconds = 4,
+	RecoveryCooldownSeconds = 8,
 }
 
 
