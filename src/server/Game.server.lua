@@ -1429,6 +1429,10 @@ Players.PlayerRemoving:Connect(function(player)
 	lastRecoveryAt[player] = nil
 	lastSanctuaryNoticeAt[player] = nil
 	votes[player.UserId] = nil
+	decisionEligible[player.UserId] = nil
+	if decisionOpen then
+		updateDecisionTallies()
+	end
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
