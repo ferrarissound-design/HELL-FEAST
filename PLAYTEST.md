@@ -94,6 +94,7 @@ Verify:
 - enemies route around Soul Cage bars rather than clipping directly through them
 - enemies do not treat their target player's character as a wall
 - multiple demons can still converge on a player without freezing each other
+- moving anchored demon bodies do not physically trap, shove, or fling the player
 - demons that cannot find a clear left or right step pause / face the player instead of teleporting through an obstacle
 - sanctuary pushback still works with obstacle steering enabled
 - THE BUTCHER remains able to move normally inside the open SLAUGHTER PIT
