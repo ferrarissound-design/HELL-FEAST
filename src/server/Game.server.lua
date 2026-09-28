@@ -419,6 +419,50 @@ local function bodyColorFor(demonType)
 	return colors[demonType] or Color3.fromRGB(120, 50, 50)
 end
 
+local function addDemonAccent(model, body, demonType)
+	local function accent(name, size, offset, color, material, shape, rotation)
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanTouch = false
+		part.CanQuery = false
+		part.Size = size
+		part.Color = color
+		part.Material = material or Enum.Material.Slate
+		part.Shape = shape or Enum.PartType.Block
+		part.CFrame = body.CFrame * CFrame.new(offset) * (rotation or CFrame.new())
+		part.Parent = model
+		return part
+	end
+
+	if demonType == "Imp" then
+		accent("LeftHorn", Vector3.new(0.35, 1.4, 0.35), Vector3.new(-0.6, body.Size.Y * 0.56, 0), Color3.fromRGB(65, 25, 25), Enum.Material.Slate, nil, CFrame.Angles(0, 0, math.rad(-18)))
+		accent("RightHorn", Vector3.new(0.35, 1.4, 0.35), Vector3.new(0.6, body.Size.Y * 0.56, 0), Color3.fromRGB(65, 25, 25), Enum.Material.Slate, nil, CFrame.Angles(0, 0, math.rad(18)))
+	elseif demonType == "Brute" then
+		accent("LeftShoulder", Vector3.new(2.4, 2.4, 2.4), Vector3.new(-body.Size.X * 0.56, body.Size.Y * 0.22, 0), Color3.fromRGB(78, 31, 30), Enum.Material.Rock, Enum.PartType.Ball)
+		accent("RightShoulder", Vector3.new(2.4, 2.4, 2.4), Vector3.new(body.Size.X * 0.56, body.Size.Y * 0.22, 0), Color3.fromRGB(78, 31, 30), Enum.Material.Rock, Enum.PartType.Ball)
+	elseif demonType == "Watcher" then
+		local halo = accent("EyeHalo", Vector3.new(4.4, 0.35, 4.4), Vector3.new(0, body.Size.Y * 0.12, -body.Size.Z * 0.58), Color3.fromRGB(180, 75, 210), Enum.Material.Neon, Enum.PartType.Cylinder, CFrame.Angles(math.rad(90), 0, 0))
+		halo.Transparency = 0.25
+	elseif demonType == "FurnaceHound" then
+		for _, x in ipairs({-1, 1}) do
+			for _, z in ipairs({-1.4, 1.4}) do
+				accent("BurningLeg", Vector3.new(0.7, 2.1, 0.7), Vector3.new(x * body.Size.X * 0.28, -body.Size.Y * 0.65, z), Color3.fromRGB(255, 95, 25), Enum.Material.Neon)
+			end
+		end
+		accent("FurnaceCore", Vector3.new(1.4, 1.4, 1.4), Vector3.new(0, 0, -body.Size.Z * 0.54), Color3.fromRGB(255, 190, 55), Enum.Material.Neon, Enum.PartType.Ball)
+	elseif demonType == "Crawler" then
+		for i = -2, 2 do
+			accent("BoneSpike", Vector3.new(0.4, 1.8, 0.4), Vector3.new(i * 0.7, body.Size.Y * 0.62, i % 2 == 0 and 0.4 or -0.4), Color3.fromRGB(195, 185, 160), Enum.Material.Limestone, nil, CFrame.Angles(math.rad(i * 6), 0, math.rad(i * 8)))
+		end
+	elseif demonType == "Butcher" then
+		accent("Apron", Vector3.new(body.Size.X * 0.72, body.Size.Y * 0.62, 0.4), Vector3.new(0, -0.8, -body.Size.Z * 0.53), Color3.fromRGB(80, 64, 58), Enum.Material.Fabric)
+		accent("Cleaver", Vector3.new(2.6, 6.6, 0.65), Vector3.new(body.Size.X * 0.62, -0.6, 0), Color3.fromRGB(150, 145, 138), Enum.Material.Metal, nil, CFrame.Angles(0, 0, math.rad(-18)))
+		accent("ChefCrown", Vector3.new(4.8, 2.2, 4.8), Vector3.new(0, body.Size.Y * 0.60, 0), Color3.fromRGB(170, 155, 145), Enum.Material.Fabric, Enum.PartType.Ball)
+	end
+end
+
 local function createDemon(demonType, circle, forcedPosition)
 	local data = Config.Demons[demonType]
 	if not data then
@@ -462,6 +506,8 @@ local function createDemon(demonType, circle, forcedPosition)
 	eye.Size = data.IsBoss and Vector3.new(1.6, 1.6, 1.6) or Vector3.new(0.8, 0.8, 0.8)
 	eye.CFrame = body.CFrame * CFrame.new(0, data.BodyScale.Y * 0.18, -data.BodyScale.Z * 0.52)
 	eye.Parent = model
+
+	addDemonAccent(model, body, demonType)
 
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "HealthBillboard"
