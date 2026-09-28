@@ -1339,12 +1339,20 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 		equipPart(player, payload)
 		notify(player, "DEBUG • grafted " .. Config.Parts[payload].DisplayName)
 	elseif action == "SPAWN" and type(payload) == "string" and Config.Demons[payload] and not Config.Demons[payload].IsBoss then
+		if not runActive then
+			notify(player, "DEBUG • wait for HELL RUN to start.")
+			return
+		end
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		local spawnPosition = root and (root.Position + root.CFrame.LookVector * 18) or randomArenaPosition(demonRegions[payload])
 		createDemon(payload, currentCircle, Vector3.new(spawnPosition.X, 3, spawnPosition.Z))
 		notify(player, "DEBUG • spawned " .. Config.Demons[payload].DisplayName)
 	elseif action == "BOSS_NOW" then
+		if not runActive then
+			notify(player, "DEBUG • wait for HELL RUN to start.")
+			return
+		end
 		for _, demon in ipairs(demonsFolder:GetChildren()) do
 			if demon:GetAttribute("IsBoss") == true then
 				demon:Destroy()
