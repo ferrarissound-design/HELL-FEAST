@@ -115,7 +115,7 @@ function World.Build()
 	local lava = makePart(arena, "LavaUnderworld", Vector3.new(390, 2, 390), Vector3.new(0, -4.5, 0), Enum.Material.Neon, Color3.fromRGB(255, 70, 18))
 	lava.CanCollide = false
 
-	local bossRing = makePart(arena, "BossRing", Vector3.new(82, 1, 82), Vector3.new(0, 0.2, -108), Enum.Material.CrackedLava, Color3.fromRGB(85, 47, 45))
+	local bossRing = makePart(arena, "BossRing", Vector3.new(1, 82, 82), Vector3.new(0, 0.2, -108), Enum.Material.CrackedLava, Color3.fromRGB(85, 47, 45))
 	bossRing.Shape = Enum.PartType.Cylinder
 	bossRing.CFrame = CFrame.new(0, 0.2, -108) * CFrame.Angles(0, 0, math.rad(90))
 	billboard(bossRing, "THE SLAUGHTER PIT", Vector3.new(0, 5, 0), UDim2.fromOffset(220, 44))
