@@ -109,8 +109,9 @@ local function buildSoulCage(parent, position)
 end
 
 local function buildLavaCrack(parent, position, length, angle)
-	local crack = makePart(parent, "LavaCrack", Vector3.new(length, 0.45, 1.55), position, Enum.Material.Neon, Color3.fromRGB(255, 75, 20))
-	crack.CFrame = CFrame.new(position) * CFrame.Angles(0, math.rad(angle), 0)
+	local surfacePosition = Vector3.new(position.X, 0.64, position.Z)
+	local crack = makePart(parent, "LavaCrack", Vector3.new(length, 0.20, 1.55), surfacePosition, Enum.Material.Neon, Color3.fromRGB(255, 75, 20))
+	crack.CFrame = CFrame.new(surfacePosition) * CFrame.Angles(0, math.rad(angle), 0)
 	crack.CanCollide = false
 	crack.CanTouch = true
 	crack:SetAttribute("HazardDamage", Config.Hazards.LavaDamage)
