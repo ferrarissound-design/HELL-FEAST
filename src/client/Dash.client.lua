@@ -40,6 +40,7 @@ stroke.Thickness = 2
 stroke.Parent = button
 
 local hint = Instance.new("TextLabel")
+hint.Name = "KeyboardHint"
 hint.AnchorPoint = Vector2.new(1, 1)
 hint.Position = UDim2.new(1, -30, 1, -205)
 hint.Size = UDim2.fromOffset(160, 24)
@@ -49,6 +50,7 @@ hint.TextColor3 = Color3.fromRGB(190, 165, 170)
 hint.Font = Enum.Font.Gotham
 hint.TextSize = 12
 hint.Parent = gui
+hint.Visible = not UserInputService.TouchEnabled
 
 local readyAt = 0
 local localCooldown = Config.Movement.DashCooldown
