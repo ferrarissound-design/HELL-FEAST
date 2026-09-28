@@ -355,8 +355,15 @@ local function equipPart(player, partName)
 	local attribute = "Part_" .. data.Slot
 	local previous = player:GetAttribute(attribute)
 	player:SetAttribute(attribute, partName)
+	player:SetAttribute("RunGrafts", (player:GetAttribute("RunGrafts") or 0) + 1)
 	applyPartVisual(player, partName)
 	recomputeStats(player)
+
+	if Progression.Discover(player, "Part", partName) then
+		player:SetAttribute("RunDiscoveries", (player:GetAttribute("RunDiscoveries") or 0) + 1)
+		notify(player, "HELL BOOK UPDATED • " .. data.DisplayName)
+		feedback(player, "DISCOVERY", {Category = "PART", Name = data.DisplayName})
+	end
 
 	if previous and previous ~= "" and previous ~= partName then
 		notify(player, string.format("%s replaced %s.", data.DisplayName, previous))
@@ -758,6 +765,15 @@ local function createDemon(demonType, circle, forcedPosition)
 		local killer = Players:GetPlayerByUserId(killerId)
 		if killer then
 			killer:SetAttribute("Kills", (killer:GetAttribute("Kills") or 0) + 1)
+			killer:SetAttribute("TotalKills", (killer:GetAttribute("TotalKills") or 0) + 1)
+			if data.IsBoss then
+				killer:SetAttribute("TotalBossKills", (killer:GetAttribute("TotalBossKills") or 0) + 1)
+			end
+			if Progression.Discover(killer, "Demon", demonType) then
+				killer:SetAttribute("RunDiscoveries", (killer:GetAttribute("RunDiscoveries") or 0) + 1)
+				notify(killer, "HELL BOOK UPDATED • " .. data.DisplayName)
+				feedback(killer, "DISCOVERY", {Category = "DEMON", Name = data.DisplayName})
+			end
 			local dnaMultiplier = 1 + (circle - 1) * Config.Circle.DNARewardMultiplierPerCircle
 			local dnaGain = math.max(1, math.floor((data.DNA or 1) * dnaMultiplier))
 			killer:SetAttribute("RunDNA", (killer:GetAttribute("RunDNA") or 0) + dnaGain)
@@ -1035,6 +1051,7 @@ local function createLostSoul()
 
 		captured = true
 		player:SetAttribute("Souls", (player:GetAttribute("Souls") or 0) + 1)
+		player:SetAttribute("SoulsCaptured", (player:GetAttribute("SoulsCaptured") or 0) + 1)
 		notify(player, "Lost Soul captured. Take it to HELL KITCHEN.")
 		model:Destroy()
 	end)
@@ -1121,6 +1138,10 @@ local function resetPlayerForNewRun(player)
 	player:SetAttribute("Kills", 0)
 	player:SetAttribute("RunDNA", 0)
 	player:SetAttribute("CookedCount", 0)
+	player:SetAttribute("SoulsCaptured", 0)
+	player:SetAttribute("RunGrafts", 0)
+	player:SetAttribute("RunDeaths", 0)
+	player:SetAttribute("RunDiscoveries", 0)
 	player:SetAttribute("SlowHungerUntil", 0)
 	player:SetAttribute("StarveTime", 0)
 	player:SetAttribute("DecisionVote", "")
@@ -1151,6 +1172,10 @@ local function setupPlayer(player)
 	player:SetAttribute("Kills", 0)
 	player:SetAttribute("RunDNA", 0)
 	player:SetAttribute("CookedCount", 0)
+	player:SetAttribute("SoulsCaptured", 0)
+	player:SetAttribute("RunGrafts", 0)
+	player:SetAttribute("RunDeaths", 0)
+	player:SetAttribute("RunDiscoveries", 0)
 	player:SetAttribute("DamageMultiplier", 1)
 	player:SetAttribute("HungerMultiplier", 1)
 	player:SetAttribute("SlowHungerUntil", 0)
@@ -1175,6 +1200,7 @@ local function setupPlayer(player)
 			humanoid.Health = humanoid.MaxHealth
 			humanoid.Died:Connect(function()
 				if runActive then
+					player:SetAttribute("RunDeaths", (player:GetAttribute("RunDeaths") or 0) + 1)
 					local runDNA = player:GetAttribute("RunDNA") or 0
 					local lost = math.floor(runDNA * 0.20)
 					player:SetAttribute("RunDNA", math.max(0, runDNA - lost))
@@ -1282,10 +1308,29 @@ end
 local function awardRun(player, multiplier, reason)
 	local unbanked = player:GetAttribute("RunDNA") or 0
 	local award = math.max(0, math.floor(unbanked * (multiplier or 1)))
+	local previousBest = player:GetAttribute("BestCircle") or 0
+	local newBest = math.max(previousBest, currentCircle)
+	local isNewBest = newBest > previousBest
+
+	local result = {
+		Reason = reason,
+		Circle = currentCircle,
+		Kills = player:GetAttribute("Kills") or 0,
+		Cooked = player:GetAttribute("CookedCount") or 0,
+		Souls = player:GetAttribute("SoulsCaptured") or 0,
+		Grafts = player:GetAttribute("RunGrafts") or 0,
+		Deaths = player:GetAttribute("RunDeaths") or 0,
+		Discoveries = player:GetAttribute("RunDiscoveries") or 0,
+		DNA = award,
+		NewBest = isNewBest,
+	}
+
 	player:SetAttribute("DemonDNA", (player:GetAttribute("DemonDNA") or 0) + award)
-	player:SetAttribute("BestCircle", math.max(player:GetAttribute("BestCircle") or 0, currentCircle))
+	player:SetAttribute("BestCircle", newBest)
+	player:SetAttribute("TotalRuns", (player:GetAttribute("TotalRuns") or 0) + 1)
 	player:SetAttribute("RunDNA", 0)
 	savePlayer(player)
+	feedback(player, "RUN_RESULT", result)
 	resetBody(player)
 	notify(player, string.format("%s +%d banked Demon DNA.", reason, award))
 end

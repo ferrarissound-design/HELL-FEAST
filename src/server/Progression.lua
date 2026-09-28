@@ -5,13 +5,23 @@ local Progression = {}
 local PROFILE_STORE = DataStoreService:GetDataStore("HellFeast_Profile_v2")
 local LEGACY_DNA_STORE = DataStoreService:GetDataStore("HellFeast_DemonDNA_v1")
 
+local DEMON_KEYS = {"Imp", "Brute", "Watcher", "FurnaceHound", "Crawler", "Butcher"}
+local PART_KEYS = {"ImpLegs", "BruteArm", "ButcherArm", "WatcherEye", "DemonHorn", "DemonWings", "ClawArm"}
+
 local DEFAULT_PROFILE = {
 	DemonDNA = 0,
 	BestCircle = 0,
+	TotalRuns = 0,
+	TotalKills = 0,
+	TotalBossKills = 0,
 	Upgrades = {
 		Vitality = 0,
 		Metabolism = 0,
 		Butchery = 0,
+	},
+	Discovery = {
+		Demons = {},
+		Parts = {},
 	},
 }
 
@@ -19,12 +29,31 @@ local function cloneDefaults()
 	return {
 		DemonDNA = DEFAULT_PROFILE.DemonDNA,
 		BestCircle = DEFAULT_PROFILE.BestCircle,
+		TotalRuns = DEFAULT_PROFILE.TotalRuns,
+		TotalKills = DEFAULT_PROFILE.TotalKills,
+		TotalBossKills = DEFAULT_PROFILE.TotalBossKills,
 		Upgrades = {
 			Vitality = DEFAULT_PROFILE.Upgrades.Vitality,
 			Metabolism = DEFAULT_PROFILE.Upgrades.Metabolism,
 			Butchery = DEFAULT_PROFILE.Upgrades.Butchery,
 		},
+		Discovery = {
+			Demons = {},
+			Parts = {},
+		},
 	}
+end
+
+local function copyDiscovery(source, keys)
+	local result = {}
+	if type(source) ~= "table" then
+		return result
+	end
+
+	for _, key in ipairs(keys) do
+		result[key] = source[key] == true
+	end
+	return result
 end
 
 function Progression.Load(player, config)
@@ -39,11 +68,19 @@ function Progression.Load(player, config)
 		loaded = true
 		profile.DemonDNA = tonumber(data.DemonDNA) or 0
 		profile.BestCircle = tonumber(data.BestCircle) or 0
+		profile.TotalRuns = tonumber(data.TotalRuns) or 0
+		profile.TotalKills = tonumber(data.TotalKills) or 0
+		profile.TotalBossKills = tonumber(data.TotalBossKills) or 0
 
 		if type(data.Upgrades) == "table" then
 			for key in pairs(profile.Upgrades) do
 				profile.Upgrades[key] = math.max(0, math.floor(tonumber(data.Upgrades[key]) or 0))
 			end
+		end
+
+		if type(data.Discovery) == "table" then
+			profile.Discovery.Demons = copyDiscovery(data.Discovery.Demons, DEMON_KEYS)
+			profile.Discovery.Parts = copyDiscovery(data.Discovery.Parts, PART_KEYS)
 		end
 	end
 
@@ -55,6 +92,9 @@ function Progression.Load(player, config)
 
 	player:SetAttribute("DemonDNA", profile.DemonDNA)
 	player:SetAttribute("BestCircle", profile.BestCircle)
+	player:SetAttribute("TotalRuns", profile.TotalRuns)
+	player:SetAttribute("TotalKills", profile.TotalKills)
+	player:SetAttribute("TotalBossKills", profile.TotalBossKills)
 
 	for key, level in pairs(profile.Upgrades) do
 		local upgrade = config.Upgrades[key]
@@ -64,17 +104,43 @@ function Progression.Load(player, config)
 		player:SetAttribute("Upgrade_" .. key, level)
 	end
 
+	for _, key in ipairs(DEMON_KEYS) do
+		player:SetAttribute("Book_Demon_" .. key, profile.Discovery.Demons[key] == true)
+	end
+
+	for _, key in ipairs(PART_KEYS) do
+		player:SetAttribute("Book_Part_" .. key, profile.Discovery.Parts[key] == true)
+	end
+
 	return profile
 end
 
 function Progression.Save(player)
+	local demons = {}
+	local parts = {}
+
+	for _, key in ipairs(DEMON_KEYS) do
+		demons[key] = player:GetAttribute("Book_Demon_" .. key) == true
+	end
+
+	for _, key in ipairs(PART_KEYS) do
+		parts[key] = player:GetAttribute("Book_Part_" .. key) == true
+	end
+
 	local data = {
 		DemonDNA = player:GetAttribute("DemonDNA") or 0,
 		BestCircle = player:GetAttribute("BestCircle") or 0,
+		TotalRuns = player:GetAttribute("TotalRuns") or 0,
+		TotalKills = player:GetAttribute("TotalKills") or 0,
+		TotalBossKills = player:GetAttribute("TotalBossKills") or 0,
 		Upgrades = {
 			Vitality = player:GetAttribute("Upgrade_Vitality") or 0,
 			Metabolism = player:GetAttribute("Upgrade_Metabolism") or 0,
 			Butchery = player:GetAttribute("Upgrade_Butchery") or 0,
+		},
+		Discovery = {
+			Demons = demons,
+			Parts = parts,
 		},
 	}
 
@@ -83,6 +149,25 @@ function Progression.Save(player)
 	end)
 
 	return ok, err
+end
+
+function Progression.Discover(player, category, key)
+	local prefix
+	if category == "Demon" then
+		prefix = "Book_Demon_"
+	elseif category == "Part" then
+		prefix = "Book_Part_"
+	else
+		return false
+	end
+
+	local attribute = prefix .. key
+	if player:GetAttribute(attribute) == true then
+		return false
+	end
+
+	player:SetAttribute(attribute, true)
+	return true
 end
 
 function Progression.GetUpgradeCost(player, config, key)
