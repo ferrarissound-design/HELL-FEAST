@@ -28,6 +28,7 @@ local function stroke(parent, color, thickness, transparency)
 end
 
 local bookButton = Instance.new("TextButton")
+bookButton.Name = "HellBookButton"
 bookButton.AnchorPoint = Vector2.new(1, 0)
 bookButton.Position = UDim2.new(1, -18, 0, 18)
 bookButton.Size = UDim2.fromOffset(118, 42)
@@ -43,6 +44,7 @@ rounded(bookButton, 12)
 stroke(bookButton, Color3.fromRGB(115, 70, 95), 2, 0.2)
 
 local bookFrame = Instance.new("Frame")
+bookFrame.Name = "HellBookFrame"
 bookFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 bookFrame.Position = UDim2.fromScale(0.5, 0.5)
 bookFrame.Size = UDim2.new(0.88, 0, 0.82, 0)
@@ -290,6 +292,7 @@ for _, key in ipairs(Config.HellBook.PartOrder) do
 end
 
 local discoveryBanner = Instance.new("TextLabel")
+discoveryBanner.Name = "DiscoveryBanner"
 discoveryBanner.AnchorPoint = Vector2.new(0.5, 0.5)
 discoveryBanner.Position = UDim2.fromScale(0.5, 0.78)
 discoveryBanner.Size = UDim2.fromOffset(380, 60)
@@ -305,6 +308,7 @@ discoveryBanner.Parent = gui
 rounded(discoveryBanner, 14)
 
 local result = Instance.new("Frame")
+result.Name = "ResultFrame"
 result.AnchorPoint = Vector2.new(0.5, 0.5)
 result.Position = UDim2.fromScale(0.5, 0.5)
 result.Size = UDim2.new(0.82, 0, 0, 350)
