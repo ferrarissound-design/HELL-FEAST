@@ -20,7 +20,16 @@ local maxMotes = 20
 local function updateQuality()
 	local camera = Workspace.CurrentCamera
 	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	lowFx = UserInputService.TouchEnabled or viewport.Y < 520 or viewport.X < 800
+	local mode = player:GetAttribute("SessionFXMode") or "AUTO"
+
+	if mode == "LOW" then
+		lowFx = true
+	elseif mode == "HIGH" then
+		lowFx = false
+	else
+		lowFx = UserInputService.TouchEnabled or viewport.Y < 520 or viewport.X < 800
+	end
+
 	maxMotes = lowFx and 8 or 20
 	player:SetAttribute("LowFX", lowFx)
 end
@@ -266,6 +275,7 @@ Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	updateQuality()
 end)
 bindCamera(Workspace.CurrentCamera)
+player:GetAttributeChangedSignal("SessionFXMode"):Connect(updateQuality)
 
 player.AncestryChanged:Connect(function(_, parent)
 	if not parent and localFolder.Parent then
