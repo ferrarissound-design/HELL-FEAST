@@ -8,7 +8,10 @@ if not RunService:IsStudio() then
 end
 
 local player = Players.LocalPlayer
-local debugRemote = ReplicatedStorage:WaitForChild("HellFeastRemotes"):WaitForChild("DebugCommand")
+local remotes = ReplicatedStorage:WaitForChild("HellFeastRemotes")
+local debugRemote = remotes:WaitForChild("DebugCommand")
+local dashRemote = remotes:WaitForChild("Dash")
+local decisionVoteRemote = remotes:WaitForChild("DecisionVote")
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "HellFeastDebug"
@@ -136,6 +139,26 @@ local function button(text, action, payload)
 	end)
 end
 
+
+local function customButton(text, callback)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1, -4, 0, 38)
+	b.BackgroundColor3 = Color3.fromRGB(48, 35, 51)
+	b.BackgroundTransparency = 0.05
+	b.BorderSizePixel = 0
+	b.Text = text
+	b.TextColor3 = Color3.fromRGB(235, 218, 216)
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 13
+	b.Parent = scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 9)
+	corner.Parent = b
+
+	b.Activated:Connect(callback)
+end
+
 section("PLAYER / FAILURE TESTS")
 button("Restore HP + Hunger", "HEAL_FEED")
 button("Set Hunger → 10", "LOW_HUNGER")
@@ -171,6 +194,18 @@ button("Graft Demon Horn", "GRAFT", "DemonHorn")
 button("Graft Demon Wings", "GRAFT", "DemonWings")
 button("Graft Claw Arm", "GRAFT", "ClawArm")
 button("Graft Butcher Arm", "GRAFT", "ButcherArm")
+
+
+section("WATCHDOG / REMOTE GUARDS")
+button("WD: Remove Active Boss", "WD_DROP_BOSS")
+button("WD: Empty Active Hunt", "WD_EMPTY_RUN")
+button("WD: Expire Open Decision", "WD_STALE_DECISION")
+customButton("SEC: Send Invalid Dash", function()
+	dashRemote:FireServer("INVALID_DIRECTION")
+end)
+customButton("SEC: Send Invalid Vote", function()
+	decisionVoteRemote:FireServer("INVALID_CHOICE")
+end)
 
 local function refreshStatus()
 	local buildId = Workspace:GetAttribute("BuildId") or "?"
@@ -219,16 +254,22 @@ task.spawn(function()
 		local runState = Workspace:GetAttribute("RunState") or "?"
 		local fx = player:GetAttribute("SessionFXMode") or "AUTO"
 		local lowFx = player:GetAttribute("LowFX") == true and "LOW" or "FULL"
+		local watchdogRecoveries = Workspace:GetAttribute("WatchdogRecoveries") or 0
+		local watchdogStatus = Workspace:GetAttribute("WatchdogStatus") or "?"
+		local securityRejects = Workspace:GetAttribute("SecurityRejects") or 0
 
 		runtime.Text = string.format(
-			"FPS %d • D %d • S %d • C%d • %s • FX %s/%s",
+			"FPS %d • D %d • S %d • C%d • %s • FX %s/%s\nWD %s/%d • SEC %d",
 			fps,
 			demonCount,
 			soulCount,
 			circle,
 			runState,
 			fx,
-			lowFx
+			lowFx,
+			watchdogStatus,
+			watchdogRecoveries,
+			securityRejects
 		)
 		task.wait(0.5)
 	end
