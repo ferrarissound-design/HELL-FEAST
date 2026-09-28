@@ -331,9 +331,9 @@ function World.Build()
 	spawn.Parent = kitchen
 
 	local recipes = {
-		{ key = "HellPie", label = "HELL PIE", pos = Vector3.new(-14, 4, -5) },
-		{ key = "SoulBurger", label = "SOUL BURGER", pos = Vector3.new(0, 4, -5) },
-		{ key = "SinnerStew", label = "SINNER STEW", pos = Vector3.new(14, 4, -5) },
+		{ key = "HellPie", pos = Vector3.new(-14, 4, -5) },
+		{ key = "SoulBurger", pos = Vector3.new(0, 4, -5) },
+		{ key = "SinnerStew", pos = Vector3.new(14, 4, -5) },
 	}
 
 	local stations = Instance.new("Folder")
@@ -341,10 +341,23 @@ function World.Build()
 	stations.Parent = kitchen
 
 	for _, recipe in ipairs(recipes) do
+		local data = Config.Recipes[recipe.key]
 		local station = makePart(stations, recipe.key, Vector3.new(9, 6, 8), recipe.pos, Enum.Material.Metal, Color3.fromRGB(92, 45, 36))
 		station:SetAttribute("Recipe", recipe.key)
-		makePrompt(station, "Cook", recipe.label, 0.45)
-		billboard(station, recipe.label, Vector3.new(0, 4.5, 0), UDim2.fromOffset(150, 36))
+
+		local costText = string.format("%d Soul%s", data.SoulCost, data.SoulCost == 1 and "" or "s")
+		local effects = {string.format("+%d Hunger", data.HungerRestore or 0)}
+		if (data.Heal or 0) > 0 then
+			table.insert(effects, string.format("+%d HP", data.Heal))
+		end
+		if data.SlowHungerSeconds then
+			table.insert(effects, string.format("Slow hunger %ds", data.SlowHungerSeconds))
+		end
+		local effectText = table.concat(effects, " • ")
+		local display = string.format("%s\n%s • %s", data.DisplayName, costText, effectText)
+
+		makePrompt(station, "Cook", string.format("%s • %s", data.DisplayName, costText), 0.45)
+		billboard(station, display, Vector3.new(0, 5.0, 0), UDim2.fromOffset(250, 64))
 
 		local heat = Instance.new("PointLight")
 		heat.Color = Color3.fromRGB(255, 112, 62)
@@ -365,16 +378,18 @@ function World.Build()
 	upgradePads.Parent = kitchen
 
 	local upgrades = {
-		{key = "Vitality", label = "VITALITY", pos = Vector3.new(-12, 2.4, 13), color = Color3.fromRGB(115, 45, 50)},
-		{key = "Metabolism", label = "METABOLISM", pos = Vector3.new(0, 2.4, 13), color = Color3.fromRGB(100, 68, 42)},
-		{key = "Butchery", label = "BUTCHERY", pos = Vector3.new(12, 2.4, 13), color = Color3.fromRGB(72, 45, 95)},
+		{key = "Vitality", pos = Vector3.new(-12, 2.4, 13), color = Color3.fromRGB(115, 45, 50), effect = "+Max HP"},
+		{key = "Metabolism", pos = Vector3.new(0, 2.4, 13), color = Color3.fromRGB(100, 68, 42), effect = "+Max Hunger"},
+		{key = "Butchery", pos = Vector3.new(12, 2.4, 13), color = Color3.fromRGB(72, 45, 95), effect = "+Damage"},
 	}
 
 	for _, info in ipairs(upgrades) do
+		local data = Config.Upgrades[info.key]
 		local pad = makePart(upgradePads, info.key, Vector3.new(8, 2.8, 7), info.pos, Enum.Material.Metal, info.color)
 		pad:SetAttribute("UpgradeKey", info.key)
-		makePrompt(pad, "Upgrade", info.label, 0.6)
-		billboard(pad, info.label, Vector3.new(0, 3.2, 0), UDim2.fromOffset(145, 34))
+		local label = string.format("%s\n%s • starts %d DNA", data.DisplayName, info.effect, data.BaseCost)
+		makePrompt(pad, "Upgrade", string.format("%s • starts %d DNA", data.DisplayName, data.BaseCost), 0.6)
+		billboard(pad, label, Vector3.new(0, 3.7, 0), UDim2.fromOffset(210, 56))
 	end
 
 	local altar = makePart(kitchen, "DecisionAltar", Vector3.new(8, 6, 5), Vector3.new(0, 4, 24), Enum.Material.Slate, Color3.fromRGB(62, 38, 74))
