@@ -160,7 +160,7 @@ local function isInSanctuaryPosition(position)
 end
 
 isPlayerProtected = function(player, root)
-	if not root then
+	if not root or player:GetAttribute("SetupComplete") ~= true then
 		return true
 	end
 	if isInSanctuaryPosition(root.Position) then
@@ -262,7 +262,7 @@ end
 
 
 local function playerNearPart(player, part, maxDistance)
-	if not part or not part.Parent then
+	if not part or not part.Parent or player:GetAttribute("SetupComplete") ~= true then
 		return false
 	end
 
@@ -1568,6 +1568,7 @@ local function setupPlayer(player)
 		return
 	end
 	setupStarted[player] = true
+	player:SetAttribute("SetupComplete", false)
 
 	player:SetAttribute("Hunger", Config.Hunger.Max)
 	player:SetAttribute("MaxHunger", Config.Hunger.Max)
@@ -1594,8 +1595,14 @@ local function setupPlayer(player)
 	end
 
 	local _, profileReady = Progression.Load(player, Config)
+	if player.Parent ~= Players then
+		return
+	end
+
 	recomputeStats(player)
 	player:SetAttribute("Hunger", maxHungerFor(player))
+	player:SetAttribute("SetupComplete", true)
+	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 
 	if not profileReady then
 		task.delay(1.2, function()
