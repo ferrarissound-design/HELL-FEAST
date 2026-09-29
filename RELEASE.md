@@ -2,7 +2,7 @@
 
 Release candidate build:
 
-`HF-RC-20260929-05`
+`HF-RC-20260929-06`
 
 This checklist is intentionally short. If a step fails, fix that failure before publishing.
 
@@ -21,7 +21,7 @@ Expected after the release-gate PR is merged:
 - `git status` is clean
 - Roblox Studio connects through Rojo
 - Play mode shows **DEV PANEL**
-- DEV PANEL shows build **HF-RC-20260929-05**
+- DEV PANEL shows build **HF-RC-20260929-06**
 - DEV PANEL shows **QA PASS** with zero failed checks
 - DEV PANEL runtime line shows plausible FPS / demon / Soul counts and updates while playing
 
@@ -66,7 +66,45 @@ Confirm:
 - DASH can escape telegraphed attacks
 - demon bodies do not physically trap or fling the player
 
-## 4. Boss gate
+## 4. RC-06 regression gate
+
+Before the boss test, verify the bugs fixed by the deep audit:
+
+1. **Death / respawn**
+   - die during an active run
+   - death overlay appears
+   - Humanoid stays dead until Roblox respawns it
+   - controls and one Rusty Cleaver return after respawn
+2. **Cover / targeting**
+   - place a tree, pillar, cage bar, or kitchen wall between player and demon
+   - melee outline must not select through solid cover
+   - player melee must not damage through solid cover
+   - Brute / Watcher / Furnace Hound must not begin an attack through solid cover
+   - hide behind cover during a Brute windup and confirm the delayed slam does not hit through it
+3. **Attack sequencing**
+   - during a telegraphed enemy attack, confirm an instant melee hit is not stacked into the same windup
+   - kill THE BUTCHER while adds remain and confirm combat stops immediately
+4. **Interaction validation**
+   - cooking, upgrades, Lost Soul capture and graft pickup work normally at prompt range
+   - no interaction succeeds from clearly outside prompt range
+5. **Vote lock**
+   - cast ESCAPE or DESCEND once
+   - buttons disable after server confirmation
+   - a second choice does not replace the first vote
+6. **DASH**
+   - DASH works in HELL RUN / BOSS
+   - DASH shows WAIT outside active combat
+   - cooldown begins only after successful server confirmation
+   - on phone emulation, DASH returns to its responsive size after the pulse
+7. **UI races**
+   - force Phase II then Phase III quickly; the Phase III banner must not be hidden by the older timer
+   - begin a new combat run with the result screen still open; it must close automatically
+8. **Persistence**
+   - trigger Save Profile Now several times around autosave / upgrade activity
+   - latest DNA / upgrades / HELL BOOK state must remain after rejoin
+   - no stale save should overwrite a newer snapshot
+
+## 5. Boss gate
 
 1. Teleport to **SLAUGHTER PIT**
 2. **Spawn THE BUTCHER Now**
@@ -83,7 +121,7 @@ Confirm:
 - DESCEND returns the player to HELL KITCHEN with grafts preserved
 - the next Circle starts normally
 
-## 5. Watchdog / remote-guard gate
+## 6. Watchdog / remote-guard gate
 
 Use the DEV PANEL watchdog/security section:
 
@@ -101,7 +139,7 @@ Use the DEV PANEL watchdog/security section:
 
 Normal play should leave WD at 0 and SEC at 0 unless you deliberately run these tests or double-fire a guarded control extremely quickly.
 
-## 6. Phone gate
+## 7. Phone gate
 
 Use Studio device emulation.
 
@@ -118,7 +156,7 @@ Confirm:
 - attack telegraphs remain readable
 - runtime FPS does not collapse under normal Circle 1 combat density
 
-## 7. One normal run
+## 8. One normal run
 
 After the debug smoke tests, restart Play mode and do one normal Circle without DEV shortcuts.
 
@@ -148,3 +186,7 @@ Write down anything irritating, confusing, unfair, visually broken, or slow. Tho
 - critical UI is unusable on phone
 - Watchdog recovery loops repeatedly during normal play
 - invalid remote payloads can change gameplay state
+- death leaves the Humanoid stuck alive / dead in an inconsistent state
+- attacks or prompts work through solid cover / clearly invalid distance
+- a locked ESCAPE / DESCEND vote can be changed
+- a stale profile save overwrites newer progression
