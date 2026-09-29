@@ -1063,6 +1063,7 @@ local function createDemon(demonType, circle, forcedPosition)
 
 		if data.IsBoss then
 			circleBossDefeated = true
+			runActive = false
 			Workspace:SetAttribute("BossAlive", false)
 			notifyAll("THE BUTCHER HAS FALLEN. Decide whether to escape or descend.")
 		end
