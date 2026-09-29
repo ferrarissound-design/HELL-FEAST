@@ -82,6 +82,7 @@ check(type(Config.Security.DashRemoteMinInterval) == "number" and Config.Securit
 check(type(Config.Security.DecisionRemoteMinInterval) == "number" and Config.Security.DecisionRemoteMinInterval > 0, "decision remote rate guard is valid")
 check(type(Config.Security.DebugRemoteMinInterval) == "number" and Config.Security.DebugRemoteMinInterval > 0, "debug remote rate guard is valid")
 check(type(Config.Security.MaxClientDirectionMagnitude) == "number" and Config.Security.MaxClientDirectionMagnitude >= 1, "client direction magnitude limit is valid")
+check(type(Config.Security.PromptDistancePadding) == "number" and Config.Security.PromptDistancePadding >= 0 and Config.Security.PromptDistancePadding <= 6, "prompt distance padding is valid")
 
 check(type(Config.Watchdog.TickSeconds) == "number" and Config.Watchdog.TickSeconds > 0, "watchdog tick is valid")
 check(type(Config.Watchdog.BossMissingGraceSeconds) == "number" and Config.Watchdog.BossMissingGraceSeconds >= Config.Watchdog.TickSeconds, "watchdog boss grace is valid")
