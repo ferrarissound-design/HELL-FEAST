@@ -427,4 +427,11 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 	end
 end)
 
+Workspace:GetAttributeChangedSignal("RunState"):Connect(function()
+	local state = Workspace:GetAttribute("RunState")
+	if state == "HELL RUN" or state == "BOSS" then
+		result.Visible = false
+	end
+end)
+
 refreshBook()

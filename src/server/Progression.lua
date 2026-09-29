@@ -7,6 +7,9 @@ local LEGACY_DNA_STORE = DataStoreService:GetDataStore("HellFeast_DemonDNA_v1")
 
 local SAVE_ATTEMPTS = 3
 local SAVE_RETRY_SECONDS = 0.75
+local SAVE_LOCK_POLL_SECONDS = 0.05
+local SAVE_LOCK_TIMEOUT_SECONDS = 8
+local saveBusy = {}
 
 local DEMON_KEYS = {"Imp", "Brute", "Watcher", "FurnaceHound", "Crawler", "Butcher"}
 local PART_KEYS = {"ImpLegs", "BruteArm", "ButcherArm", "WatcherEye", "DemonHorn", "DemonWings", "ClawArm"}
@@ -59,13 +62,31 @@ local function copyDiscovery(source, keys)
 	return result
 end
 
+
+local function waitForSaveSlot(key)
+	local deadline = os.clock() + SAVE_LOCK_TIMEOUT_SECONDS
+	while saveBusy[key] do
+		if os.clock() >= deadline then
+			return false
+		end
+		task.wait(SAVE_LOCK_POLL_SECONDS)
+	end
+	return true
+end
+
 function Progression.Load(player, config)
 	local profile = cloneDefaults()
 	local loaded = false
+	local key = tostring(player.UserId)
 
-	local ok, data = pcall(function()
-		return PROFILE_STORE:GetAsync(tostring(player.UserId))
-	end)
+	local slotReady = waitForSaveSlot(key)
+	local ok = false
+	local data
+	if slotReady then
+		ok, data = pcall(function()
+			return PROFILE_STORE:GetAsync(key)
+		end)
+	end
 
 	local profileReadSucceeded = ok and (data == nil or type(data) == "table")
 
@@ -128,10 +149,7 @@ function Progression.Load(player, config)
 	return profile, profileReadSucceeded
 end
 
-function Progression.Save(player)
-	if player:GetAttribute("ProgressionReadOnly") == true or player:GetAttribute("ProfileReady") ~= true then
-		return false, "Profile load was not confirmed; save blocked to protect existing data."
-	end
+local function captureProfile(player)
 	local demons = {}
 	local parts = {}
 
@@ -143,7 +161,7 @@ function Progression.Save(player)
 		parts[key] = player:GetAttribute("Book_Part_" .. key) == true
 	end
 
-	local data = {
+	return {
 		DemonDNA = player:GetAttribute("DemonDNA") or 0,
 		BestCircle = player:GetAttribute("BestCircle") or 0,
 		TotalRuns = player:GetAttribute("TotalRuns") or 0,
@@ -159,16 +177,39 @@ function Progression.Save(player)
 			Parts = parts,
 		},
 	}
+end
 
+function Progression.Save(player)
+	if player:GetAttribute("ProgressionReadOnly") == true or player:GetAttribute("ProfileReady") ~= true then
+		return false, "Profile load was not confirmed; save blocked to protect existing data."
+	end
+
+	local key = tostring(player.UserId)
+	if not waitForSaveSlot(key) then
+		return false, "Timed out waiting for an earlier profile save."
+	end
+
+	saveBusy[key] = true
+
+	if player:GetAttribute("ProgressionReadOnly") == true or player:GetAttribute("ProfileReady") ~= true then
+		saveBusy[key] = nil
+		return false, "Profile became read-only while waiting to save."
+	end
+
+	-- Capture only after acquiring the per-player lock. A later save therefore
+	-- cannot finish first and then be overwritten by an older snapshot.
+	local data = captureProfile(player)
 	local lastError
+
 	for attempt = 1, SAVE_ATTEMPTS do
 		local ok, err = pcall(function()
-			PROFILE_STORE:UpdateAsync(tostring(player.UserId), function()
+			PROFILE_STORE:UpdateAsync(key, function()
 				return data
 			end)
 		end)
 
 		if ok then
+			saveBusy[key] = nil
 			player:SetAttribute("SaveFailureCount", 0)
 			player:SetAttribute("LastSaveFailed", false)
 			player:SetAttribute("SaveWarningShown", false)
@@ -184,6 +225,7 @@ function Progression.Save(player)
 		end
 	end
 
+	saveBusy[key] = nil
 	return false, lastError
 end
 

@@ -2,7 +2,7 @@
 
 Use the **DEV PANEL** in Roblox Studio to test systems without waiting through a full run. The panel and debug commands are disabled outside Studio.
 
-Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-05** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
+Before testing anything else, confirm DEV PANEL reports build **HF-RC-20260929-06** and **QA PASS**. If not, treat the Studio session as invalid until the sync or failing check is fixed.
 
 Also watch the DEV PANEL runtime line during tests. It reports FPS, active demons, active Lost Souls, Circle, run state, and the effective FX mode.
 
@@ -93,6 +93,54 @@ During a run:
 - die during a run and confirm the death overlay clearly states graft / Soul / DNA loss
 
 Rejoin Play mode and verify persistent records when Studio DataStore access is enabled.
+
+## RC-06 deep regression test
+
+### Death / respawn
+
+- die with at least one graft equipped
+- confirm the death overlay appears once
+- confirm the dead Humanoid does not pop back to 1 HP before respawn
+- confirm grafts are stripped, Souls are lost, and only the intended DNA penalty is applied
+- after respawn, confirm one Rusty Cleaver exists, HEALTH is full, VEIL appears, and combat works after protection expires
+
+### Cover / melee / enemy attacks
+
+- stand within melee range of a demon with solid map geometry between you
+- confirm melee highlight does not select that demon
+- confirm swinging cannot damage that demon
+- place cover between a demon and player before Brute / Watcher / Furnace Hound attack selection and confirm no through-wall attack starts
+- begin a Brute warning in open sight, move behind solid cover before impact, and confirm the hit is blocked
+- during any telegraphed enemy attack, confirm no instant melee hit stacks into the same windup
+- kill THE BUTCHER with adds alive and confirm remaining combat stops immediately
+
+### Prompt / vote validation
+
+- verify normal-range Lost Soul capture, graft pickup, cooking, and permanent upgrade interactions still work
+- attempt those interactions from clearly beyond the prompt radius and confirm no state changes
+- vote ESCAPE or DESCEND once and confirm buttons disable only after the server accepts the vote
+- try the opposite choice and confirm the original vote remains locked
+- during Watchdog overdue-decision recovery, confirm the UI also updates to ESCAPE
+
+### DASH / responsive UI
+
+- verify DASH is unavailable outside HELL RUN / BOSS and shows WAIT
+- verify a successful DASH starts cooldown only after server confirmation
+- verify rejected / invalid DASH does not create a fake cooldown or camera kick
+- in phone emulation, use DASH repeatedly and confirm the button always returns to the responsive touch size
+
+### Delayed UI / listener regressions
+
+- force Phase II then Phase III rapidly and confirm the Phase III banner remains visible for its own duration
+- leave a run result panel open and allow the next HELL RUN to begin; confirm the result closes automatically
+- respawn repeatedly and change device viewport / camera; confirm damage flashes and responsive layout do not duplicate or fire multiple times
+
+### Persistence race
+
+- with Studio DataStore access enabled, save manually, change permanent progression, and save again near an autosave
+- rejoin and confirm the newest DNA / upgrades / HELL BOOK state is present
+- disconnect and reconnect quickly and confirm the reconnect does not load an older same-server snapshot
+- if a save/load lock times out, confirm the session reports failure instead of overwriting unknown data
 
 ## Demon movement / obstacle test
 
@@ -204,3 +252,8 @@ Do not publish a new build if any of these occur:
 - a failed profile load is allowed to overwrite stored progression
 - watchdog enters a repeated recovery loop
 - invalid custom remote payloads can mutate gameplay state
+- a dead Humanoid is revived to 1 HP before normal respawn
+- melee / enemy attacks can pass through solid cover
+- remote prompt interaction succeeds from clearly invalid distance
+- a decision vote can be changed after being locked
+- an older concurrent save overwrites newer permanent progress

@@ -277,12 +277,10 @@ notifyRemote.OnClientEvent:Connect(showNotice)
 
 escapeButton.Activated:Connect(function()
 	decisionVoteRemote:FireServer("ESCAPE")
-	voteStatus.Text = "VOTED: ESCAPE"
 end)
 
 descendButton.Activated:Connect(function()
 	decisionVoteRemote:FireServer("DESCEND")
-	voteStatus.Text = "VOTED: DESCEND"
 end)
 
 local function formatTime(seconds)
@@ -353,21 +351,22 @@ local function refresh()
 
 	local decisionOpen = Workspace:GetAttribute("DecisionOpen") == true
 	local decisionEligible = player:GetAttribute("DecisionEligible") == true
+	local vote = player:GetAttribute("DecisionVote") or ""
+	local canVote = decisionEligible and vote == ""
 	decisionFrame.Visible = decisionOpen
 	descendButton.Visible = circle < Config.MaxCircle
-	escapeButton.Active = decisionEligible
-	escapeButton.AutoButtonColor = decisionEligible
-	descendButton.Active = decisionEligible
-	descendButton.AutoButtonColor = decisionEligible
-	escapeButton.BackgroundTransparency = decisionEligible and 0 or 0.42
-	descendButton.BackgroundTransparency = decisionEligible and 0 or 0.42
+	escapeButton.Active = canVote
+	escapeButton.AutoButtonColor = canVote
+	descendButton.Active = canVote
+	descendButton.AutoButtonColor = canVote
+	escapeButton.BackgroundTransparency = canVote and 0 or 0.42
+	descendButton.BackgroundTransparency = canVote and 0 or 0.42
 	if decisionOpen and circle >= Config.MaxCircle then
 		decisionTitle.Text = "DEEPEST CIRCLE CLEARED\nESCAPE WITH YOUR HAUL"
 	else
 		decisionTitle.Text = "THE BUTCHER IS DEAD\nWHAT NOW?"
 	end
 
-	local vote = player:GetAttribute("DecisionVote") or ""
 	local escapeVotes = Workspace:GetAttribute("DecisionEscapeVotes") or 0
 	local descendVotes = Workspace:GetAttribute("DecisionDescendVotes") or 0
 	local eligible = Workspace:GetAttribute("DecisionEligible") or 0

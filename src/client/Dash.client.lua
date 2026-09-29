@@ -6,7 +6,9 @@ local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
-local dashRemote = ReplicatedStorage:WaitForChild("HellFeastRemotes"):WaitForChild("Dash")
+local remotes = ReplicatedStorage:WaitForChild("HellFeastRemotes")
+local dashRemote = remotes:WaitForChild("Dash")
+local feedbackRemote = remotes:WaitForChild("Feedback")
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "HellFeastDash"
@@ -53,6 +55,7 @@ hint.Parent = gui
 hint.Visible = not UserInputService.TouchEnabled
 
 local readyAt = 0
+local requestPendingUntil = 0
 local localCooldown = Config.Movement.DashCooldown
 
 local function getDirection()
@@ -87,7 +90,11 @@ local function cameraKick()
 		return
 	end
 
-	local base = camera.FieldOfView
+	local base = camera:GetAttribute("HellFeastBaseFOV")
+	if type(base) ~= "number" then
+		base = camera.FieldOfView
+		camera:SetAttribute("HellFeastBaseFOV", base)
+	end
 	TweenService:Create(camera, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {
 		FieldOfView = base + 7,
 	}):Play()
@@ -101,9 +108,18 @@ local function cameraKick()
 	end)
 end
 
+local function combatActive()
+	local state = Workspace:GetAttribute("RunState")
+	return state == "HELL RUN" or state == "BOSS"
+end
+
 local function tryDash()
+	if not combatActive() then
+		return
+	end
+
 	local now = os.clock()
-	if now < readyAt then
+	if now < readyAt or now < requestPendingUntil then
 		return
 	end
 
@@ -123,15 +139,31 @@ local function tryDash()
 		return
 	end
 
-	readyAt = now + localCooldown
+	requestPendingUntil = now + 0.35
 	dashRemote:FireServer(direction)
+end
+
+feedbackRemote.OnClientEvent:Connect(function(kind, payload)
+	if kind ~= "DASH" then
+		return
+	end
+
+	requestPendingUntil = 0
+	readyAt = os.clock() + (tonumber(payload and payload.Cooldown) or localCooldown)
 	cameraKick()
 
-	button.Size = UDim2.fromOffset(104, 104)
+	local restSize = button.Size
+	local pulseSize = UDim2.new(
+		restSize.X.Scale,
+		restSize.X.Offset + 12,
+		restSize.Y.Scale,
+		restSize.Y.Offset + 12
+	)
+	button.Size = pulseSize
 	TweenService:Create(button, TweenInfo.new(0.14, Enum.EasingStyle.Back), {
-		Size = UDim2.fromOffset(92, 92),
+		Size = restSize,
 	}):Play()
-end
+end)
 
 button.Activated:Connect(tryDash)
 
@@ -149,8 +181,17 @@ end)
 
 task.spawn(function()
 	while gui.Parent do
-		local remaining = readyAt - os.clock()
-		if remaining > 0 then
+		local now = os.clock()
+		local remaining = readyAt - now
+		if not combatActive() then
+			button.Text = "WAIT"
+			button.BackgroundTransparency = 0.42
+			button.AutoButtonColor = false
+		elseif now < requestPendingUntil then
+			button.Text = "..."
+			button.BackgroundTransparency = 0.24
+			button.AutoButtonColor = false
+		elseif remaining > 0 then
 			button.Text = string.format("%.1f", remaining)
 			button.BackgroundTransparency = 0.34
 			button.AutoButtonColor = false

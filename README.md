@@ -201,7 +201,7 @@ The HUD exposes only the atmospheric state **QUIET / STALK / HUNT**, not the und
 
 ## Runtime watchdog & remote guards
 
-RC-05 adds a lightweight server watchdog for clear soft-lock states:
+RC-06 includes a lightweight server watchdog for clear soft-lock states:
 
 - respawns THE BUTCHER if the boss state is active but the boss model disappears
 - restores one demon if an active non-boss hunt stays empty while a vulnerable player is outside SANCTUARY
@@ -211,6 +211,26 @@ RC-05 adds a lightweight server watchdog for clear soft-lock states:
 Custom client remotes are also server-validated and rate-limited. Invalid dash vectors, invalid vote payloads, rapid duplicate requests, and invalid Studio debug actions are ignored rather than trusted.
 
 DEV PANEL exposes **WD** recovery count/status and **SEC** rejected-request count.
+
+## RC-06 deep bug audit
+
+The release candidate also hardens several race and state edges found during a full code audit:
+
+- death stat recomputation no longer revives a dead Humanoid to 1 HP
+- profile saves are serialized per user to prevent stale snapshots overwriting newer progress
+- same-server reconnect loads wait for an in-flight final save
+- player setup is single-flight and players remain protected until profile setup completes
+- duplicate Rusty Cleavers are blocked across Backpack / Character transitions
+- melee targeting and demon attacks respect solid cover
+- telegraphed enemy attacks cannot stack an instant melee hit in the same windup
+- THE BUTCHER death stops remaining combat immediately
+- ProximityPrompt actions are revalidated by server distance
+- ESCAPE / DESCEND votes are truly locked after the first accepted vote
+- DASH cooldown / camera feedback begins only after server-confirmed success
+- mobile DASH pulse preserves responsive button sizing
+- boss phase banners and environment damage flashes no longer race older delayed effects
+- stale result screens close automatically when a new combat run begins
+- camera / health listeners are disconnected before rebinding
 
 ## Release safety
 
@@ -235,7 +255,7 @@ The server independently rejects all debug commands outside Studio. A Studio-onl
 
 See `PLAYTEST.md` for the full test matrix and `RELEASE.md` for the short publish gate.
 
-The current release candidate identifies itself in Studio as **HF-RC-20260929-05**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
+The current release candidate identifies itself in Studio as **HF-RC-20260929-06**. DEV PANEL also displays the startup QA PASS / FAIL result so stale Rojo syncs and broken configuration are obvious before testing.
 
 DEV PANEL also shows live **FPS, demon count, Lost Soul count, Circle, run state, and FX mode** so performance or spawn-density problems can be spotted during the same smoke test.
 

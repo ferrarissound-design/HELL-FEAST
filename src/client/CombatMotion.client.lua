@@ -1,9 +1,12 @@
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local bound = setmetatable({}, {__mode = "k"})
+local swingReadyAt = setmetatable({}, {__mode = "k"})
 
 local function addTrail(tool)
 	local blade = tool:FindFirstChild("Blade")
@@ -51,7 +54,11 @@ local function cameraKick()
 		return
 	end
 
-	local base = camera.FieldOfView
+	local base = camera:GetAttribute("HellFeastBaseFOV")
+	if type(base) ~= "number" then
+		base = camera.FieldOfView
+		camera:SetAttribute("HellFeastBaseFOV", base)
+	end
 	TweenService:Create(camera, TweenInfo.new(0.07, Enum.EasingStyle.Quad), {
 		FieldOfView = base + 3,
 	}):Play()
@@ -66,9 +73,19 @@ local function cameraKick()
 end
 
 local function swing(tool)
+	local state = Workspace:GetAttribute("RunState")
+	if state ~= "HELL RUN" and state ~= "BOSS" then
+		return
+	end
 	if tool.Parent ~= player.Character or player:GetAttribute("InSanctuary") == true then
 		return
 	end
+
+	local now = os.clock()
+	if now < (swingReadyAt[tool] or 0) then
+		return
+	end
+	swingReadyAt[tool] = now + Config.Combat.AttackCooldown
 
 	local trail = tool:FindFirstChild("Blade") and tool.Blade:FindFirstChild("SwingTrail")
 	local rest = tool.Grip
@@ -85,7 +102,10 @@ local function swing(tool)
 	windupTween:Play()
 
 	task.delay(0.07, function()
-		if not tool.Parent then
+		if tool.Parent ~= player.Character then
+			if trail and trail.Parent then
+				trail.Enabled = false
+			end
 			return
 		end
 		cameraKick()

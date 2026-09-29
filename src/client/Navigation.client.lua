@@ -120,7 +120,7 @@ end
 
 local function regionAt(position)
 	local kitchenDistance = (flat(position) - flat(Config.Navigation.KitchenPosition)).Magnitude
-	if kitchenDistance <= 32 then
+	if kitchenDistance <= Config.Safety.SanctuaryRadius then
 		return "HELL KITCHEN"
 	end
 
@@ -254,12 +254,27 @@ RunService.RenderStepped:Connect(function()
 
 	local targetPosition
 	local targetName
+	local souls = player:GetAttribute("Souls") or 0
+	local lowHunger = hungerRatio <= Config.Navigation.LowHungerThreshold / 100
+
 	if bossAlive then
 		targetPosition = Config.Navigation.BossPosition
 		targetName = "THE BUTCHER"
+	elseif lowHunger and souls > 0 then
+		targetPosition = Config.Navigation.KitchenPosition
+		targetName = "HELL KITCHEN • FOOD"
+	elseif lowHunger and souls <= 0 then
+		targetPosition = Config.Regions.SoulPens.Center
+		targetName = "SOUL PENS • LOST SOULS"
+	elseif not hasAnyGraft() then
+		targetPosition = Config.Regions.AshFields.Center
+		targetName = "ASH FIELDS • DEMONS"
+	elseif souls <= 0 then
+		targetPosition = Config.Regions.SoulPens.Center
+		targetName = "SOUL PENS • LOST SOULS"
 	else
 		targetPosition = Config.Navigation.KitchenPosition
-		targetName = hungerRatio <= Config.Navigation.LowHungerThreshold / 100 and "HELL KITCHEN • FOOD" or "HELL KITCHEN"
+		targetName = "HELL KITCHEN"
 	end
 
 	local toTarget = flat(targetPosition - root.Position)

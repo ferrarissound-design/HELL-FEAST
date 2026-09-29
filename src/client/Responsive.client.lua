@@ -188,11 +188,17 @@ playerGui.ChildAdded:Connect(function()
 	task.delay(0.05, scheduleApply)
 end)
 
+local cameraViewportConnection
+
 local function bindCamera(camera)
+	if cameraViewportConnection then
+		cameraViewportConnection:Disconnect()
+		cameraViewportConnection = nil
+	end
 	if not camera then
 		return
 	end
-	camera:GetPropertyChangedSignal("ViewportSize"):Connect(scheduleApply)
+	cameraViewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(scheduleApply)
 end
 
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()

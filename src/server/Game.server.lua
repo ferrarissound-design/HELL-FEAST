@@ -53,6 +53,7 @@ local hazardTouchAt = {}
 local lastRecoveryAt = {}
 local lastSanctuaryNoticeAt = {}
 local remoteLastAt = {}
+local setupStarted = {}
 local votes = {}
 local decisionEligible = {}
 local decisionStartedAt = nil
@@ -159,7 +160,7 @@ local function isInSanctuaryPosition(position)
 end
 
 isPlayerProtected = function(player, root)
-	if not root then
+	if not root or player:GetAttribute("SetupComplete") ~= true then
 		return true
 	end
 	if isInSanctuaryPosition(root.Position) then
@@ -257,6 +258,42 @@ end
 
 local function clampHungerFor(player, value)
 	return math.clamp(value, 0, maxHungerFor(player))
+end
+
+
+local function playerNearPart(player, part, maxDistance)
+	if not part or not part.Parent or player:GetAttribute("SetupComplete") ~= true then
+		return false
+	end
+
+	local character, humanoid = getCharacterHumanoid(player)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not humanoid or humanoid.Health <= 0 then
+		return false
+	end
+
+	local allowed = (maxDistance or 10) + Config.Security.PromptDistancePadding
+	return (root.Position - part.Position).Magnitude <= allowed
+end
+
+local function meleeHasLineOfSight(character, targetModel, root, targetBody)
+	if not character or not targetModel or not root or not targetBody then
+		return false
+	end
+
+	local origin = root.Position + Vector3.new(0, 0.6, 0)
+	local delta = targetBody.Position - origin
+	if delta.Magnitude <= 0.05 then
+		return true
+	end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.IgnoreWater = true
+	params.FilterDescendantsInstances = {character, soulsFolder, dropsFolder}
+
+	local result = Workspace:Raycast(origin, delta, params)
+	return result == nil or result.Instance:IsDescendantOf(targetModel)
 end
 
 
@@ -418,9 +455,14 @@ local function recomputeStats(player)
 	if humanoid then
 		local oldMax = humanoid.MaxHealth
 		local newMax = maxHealthFor(player)
+		local wasAlive = humanoid.Health > 0
 		local healthRatio = oldMax > 0 and humanoid.Health / oldMax or 1
 		humanoid.MaxHealth = newMax
-		humanoid.Health = math.clamp(newMax * healthRatio, 1, newMax)
+		if wasAlive then
+			humanoid.Health = math.clamp(newMax * healthRatio, 1, newMax)
+		else
+			humanoid.Health = 0
+		end
 		humanoid.WalkSpeed = math.max(10, 16 + walkSpeedBonus)
 	end
 
@@ -467,22 +509,39 @@ local function equipPart(player, partName)
 	feedback(player, "GRAFT", {Name = data.DisplayName, Slot = data.Slot})
 end
 
+local function handleSaveResult(player, ok, err)
+	if ok then
+		return true
+	end
+
+	warn(string.format("[HELL FEAST] Save failed for %s: %s", player.Name, tostring(err)))
+	if player.Parent and player:GetAttribute("SaveWarningShown") ~= true then
+		player:SetAttribute("SaveWarningShown", true)
+		notify(player, "Progress save unavailable • this server will not overwrite your existing profile.")
+	end
+	return false
+end
+
 local function savePlayer(player)
 	task.spawn(function()
 		local ok, err = Progression.Save(player)
-		if not ok then
-			warn(string.format("[HELL FEAST] Save failed for %s: %s", player.Name, tostring(err)))
-			if player.Parent and player:GetAttribute("SaveWarningShown") ~= true then
-				player:SetAttribute("SaveWarningShown", true)
-				notify(player, "Progress save unavailable • this server will not overwrite your existing profile.")
-			end
-		end
+		handleSaveResult(player, ok, err)
 	end)
+end
+
+local function savePlayerNow(player)
+	local ok, err = Progression.Save(player)
+	return handleSaveResult(player, ok, err)
 end
 
 local function giveWeapon(player)
 	local backpack = player:FindFirstChildOfClass("Backpack")
-	if not backpack or backpack:FindFirstChild("Rusty Cleaver") then
+	local character = player.Character
+	if not backpack then
+		return
+	end
+	if backpack:FindFirstChild("Rusty Cleaver")
+		or (character and character:FindFirstChild("Rusty Cleaver")) then
 		return
 	end
 
@@ -526,11 +585,10 @@ local function giveWeapon(player)
 		if now - (lastAttackAt[player] or 0) < Config.Combat.AttackCooldown then
 			return
 		end
-		lastAttackAt[player] = now
 
-		local character = player.Character
+		local character, humanoid = getCharacterHumanoid(player)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if not root then
+		if not root or not humanoid or humanoid.Health <= 0 then
 			return
 		end
 
@@ -541,6 +599,8 @@ local function giveWeapon(player)
 			end
 			return
 		end
+
+		lastAttackAt[player] = now
 
 		local nearest
 		local nearestScore = math.huge
@@ -563,7 +623,7 @@ local function giveWeapon(player)
 					end
 
 					local eligible = distance <= Config.Combat.CloseAssistRange or facing >= assistDot
-					if eligible then
+					if eligible and meleeHasLineOfSight(character, demon, root, body) then
 						local score = distance + (1 - facing) * Config.Combat.AssistFacingWeight
 						if score < nearestScore then
 							nearest = demon
@@ -734,7 +794,7 @@ local function dropPart(position, partName)
 
 	local taken = false
 	prompt.Triggered:Connect(function(player)
-		if taken then
+		if taken or not playerNearPart(player, drop, prompt.MaxActivationDistance) then
 			return
 		end
 		taken = true
@@ -902,6 +962,7 @@ local function createDemon(demonType, circle, forcedPosition)
 	hpLabel.TextColor3 = data.IsBoss and Color3.fromRGB(255, 170, 100) or Color3.fromRGB(255, 225, 220)
 	hpLabel.TextScaled = true
 	hpLabel.Font = Enum.Font.GothamBlack
+	hpLabel.Text = string.format("%s  %d/%d", data.DisplayName, maxHealth, maxHealth)
 	hpLabel.Parent = gui
 
 	local dead = false
@@ -1002,6 +1063,7 @@ local function createDemon(demonType, circle, forcedPosition)
 
 		if data.IsBoss then
 			circleBossDefeated = true
+			runActive = false
 			Workspace:SetAttribute("BossAlive", false)
 			notifyAll("THE BUTCHER HAS FALLEN. Decide whether to escape or descend.")
 		end
@@ -1032,6 +1094,7 @@ local function createDemon(demonType, circle, forcedPosition)
 			end
 
 			local targetPlayer, distance = nearestLivingPlayer(body.Position)
+			local performedMeleeThisTick = false
 			if targetPlayer then
 				local character, humanoid = getCharacterHumanoid(targetPlayer)
 				local targetRoot = character and character:FindFirstChild("HumanoidRootPart")
@@ -1039,6 +1102,8 @@ local function createDemon(demonType, circle, forcedPosition)
 					local current = body.Position
 					local flatTarget = Vector3.new(targetRoot.Position.X, current.Y, targetRoot.Position.Z)
 					local delta = flatTarget - current
+					local attackPathClear = delta.Magnitude > 0.01
+						and directionIsClear(model, body, delta, math.max(0.1, distance), character)
 
 					if delta.Magnitude > 0.01 and model:GetAttribute("AttackBusy") ~= true then
 						local speedMultiplier = 1
@@ -1060,10 +1125,15 @@ local function createDemon(demonType, circle, forcedPosition)
 						end
 					end
 
-					if distance <= data.AttackRange and os.clock() - lastDemonAttack >= data.AttackCooldown then
-						lastDemonAttack = os.clock()
+					if distance <= data.AttackRange
+						and attackPathClear
+						and os.clock() - lastDemonAttack >= data.AttackCooldown
+						and model:GetAttribute("AttackBusy") ~= true then
 
-						if demonType == "Brute" and model:GetAttribute("AttackBusy") ~= true then
+						lastDemonAttack = os.clock()
+						performedMeleeThisTick = true
+
+						if demonType == "Brute" then
 							model:SetAttribute("AttackBusy", true)
 							local slamPosition = Vector3.new(body.Position.X, targetRoot.Position.Y, body.Position.Z)
 							feedbackAll("TELEGRAPH_CIRCLE", {
@@ -1076,9 +1146,19 @@ local function createDemon(demonType, circle, forcedPosition)
 								if model.Parent and runActive then
 									local currentCharacter, currentHumanoid = getCharacterHumanoid(targetPlayer)
 									local currentRoot = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
+									local currentDelta = currentRoot and (currentRoot.Position - body.Position)
+									local coverClear = currentDelta and currentDelta.Magnitude > 0.01
+										and directionIsClear(
+											model,
+											body,
+											Vector3.new(currentDelta.X, 0, currentDelta.Z),
+											math.max(0.1, currentDelta.Magnitude),
+											currentCharacter
+										)
 									if currentRoot and currentHumanoid and currentHumanoid.Health > 0
 										and not isPlayerProtected(targetPlayer, currentRoot)
-										and (currentRoot.Position - body.Position).Magnitude <= 7.5 then
+										and currentDelta.Magnitude <= 7.5
+										and coverClear then
 										currentHumanoid:TakeDamage(damage)
 										feedback(targetPlayer, "ENEMY_HIT", {Demon = data.DisplayName})
 										local knock = currentRoot.Position - body.Position
@@ -1102,7 +1182,10 @@ local function createDemon(demonType, circle, forcedPosition)
 						end
 					end
 
-					if demonType == "Watcher" and distance > 8 and distance <= 30 and os.clock() - lastSpecial >= 4.2 and model:GetAttribute("AttackBusy") ~= true then
+					if demonType == "Watcher" and distance > 8 and distance <= 30
+						and attackPathClear
+						and os.clock() - lastSpecial >= 4.2
+						and model:GetAttribute("AttackBusy") ~= true then
 						lastSpecial = os.clock()
 						model:SetAttribute("AttackBusy", true)
 						local targetPosition = Vector3.new(targetRoot.Position.X, targetRoot.Position.Y, targetRoot.Position.Z)
@@ -1120,7 +1203,10 @@ local function createDemon(demonType, circle, forcedPosition)
 								model:SetAttribute("AttackBusy", false)
 							end
 						end)
-					elseif demonType == "FurnaceHound" and distance > 7 and distance <= 32 and os.clock() - lastSpecial >= 5 and model:GetAttribute("AttackBusy") ~= true then
+					elseif demonType == "FurnaceHound" and distance > 7 and distance <= 32
+						and attackPathClear
+						and os.clock() - lastSpecial >= 5
+						and model:GetAttribute("AttackBusy") ~= true then
 						lastSpecial = os.clock()
 						model:SetAttribute("AttackBusy", true)
 						local startPosition = Vector3.new(body.Position.X, targetRoot.Position.Y, body.Position.Z)
@@ -1151,7 +1237,7 @@ local function createDemon(demonType, circle, forcedPosition)
 				end
 			end
 
-			if data.IsBoss then
+			if data.IsBoss and targetPlayer and not performedMeleeThisTick then
 				local phase = model:GetAttribute("BossPhase") or 1
 				local slamCooldown = 7
 				local slamRadius = 28
@@ -1294,7 +1380,7 @@ local function createLostSoul(forcedPosition)
 
 	local captured = false
 	prompt.Triggered:Connect(function(player)
-		if captured then
+		if captured or not playerNearPart(player, root, prompt.MaxActivationDistance) then
 			return
 		end
 
@@ -1341,6 +1427,9 @@ for _, station in ipairs(stationsFolder:GetChildren()) do
 	local prompt = station:FindFirstChildOfClass("ProximityPrompt")
 	if prompt then
 		prompt.Triggered:Connect(function(player)
+			if not playerNearPart(player, station, prompt.MaxActivationDistance) then
+				return
+			end
 			cook(player, station:GetAttribute("Recipe"))
 		end)
 	end
@@ -1350,6 +1439,9 @@ for _, pad in ipairs(upgradePads:GetChildren()) do
 	local prompt = pad:FindFirstChildOfClass("ProximityPrompt")
 	if prompt then
 		prompt.Triggered:Connect(function(player)
+			if not playerNearPart(player, pad, prompt.MaxActivationDistance) then
+				return
+			end
 			local key = pad:GetAttribute("UpgradeKey")
 			local success, message = Progression.TryUpgrade(player, Config, key)
 			notify(player, message)
@@ -1402,6 +1494,11 @@ decisionVoteRemote.OnServerEvent:Connect(function(player, choice)
 
 	if decisionEligible[player.UserId] ~= true then
 		notify(player, "Decision already underway • you will follow the group.")
+		return
+	end
+
+	if votes[player.UserId] == "ESCAPE" or votes[player.UserId] == "DESCEND" then
+		notify(player, "Vote already locked: " .. votes[player.UserId])
 		return
 	end
 
@@ -1467,6 +1564,12 @@ local function prepareDescend(player)
 end
 
 local function setupPlayer(player)
+	if setupStarted[player] then
+		return
+	end
+	setupStarted[player] = true
+	player:SetAttribute("SetupComplete", false)
+
 	player:SetAttribute("Hunger", Config.Hunger.Max)
 	player:SetAttribute("MaxHunger", Config.Hunger.Max)
 	player:SetAttribute("Souls", 0)
@@ -1492,8 +1595,14 @@ local function setupPlayer(player)
 	end
 
 	local _, profileReady = Progression.Load(player, Config)
+	if player.Parent ~= Players then
+		return
+	end
+
 	recomputeStats(player)
 	player:SetAttribute("Hunger", maxHungerFor(player))
+	player:SetAttribute("SetupComplete", true)
+	player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 
 	if not profileReady then
 		task.delay(1.2, function()
@@ -1505,6 +1614,7 @@ local function setupPlayer(player)
 	end
 
 	player.CharacterAdded:Connect(function(character)
+		hazardTouchAt[player] = nil
 		player:SetAttribute("ArrivalProtectedUntil", Workspace:GetServerTimeNow() + Config.Safety.ArrivalGraceSeconds)
 		local humanoid = character:WaitForChild("Humanoid", 8)
 		task.wait(0.35)
@@ -1551,18 +1661,22 @@ end
 
 Players.PlayerAdded:Connect(setupPlayer)
 Players.PlayerRemoving:Connect(function(player)
-	savePlayer(player)
 	lastAttackAt[player] = nil
 	lastDashAt[player] = nil
 	hazardTouchAt[player] = nil
 	lastRecoveryAt[player] = nil
 	lastSanctuaryNoticeAt[player] = nil
 	remoteLastAt[player] = nil
+	setupStarted[player] = nil
 	votes[player.UserId] = nil
 	decisionEligible[player.UserId] = nil
 	if decisionOpen then
 		updateDecisionTallies()
 	end
+
+	-- Start the final save synchronously in this callback so the per-user save
+	-- lock is acquired before a same-server rapid reconnect can begin loading.
+	savePlayerNow(player)
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
@@ -1930,7 +2044,6 @@ debugRemote.OnServerEvent:Connect(function(player, action, payload)
 		circleBossDefeated = false
 		Workspace:SetAttribute("RunState", "BOSS")
 		Workspace:SetAttribute("BossAlive", true)
-		Workspace:SetAttribute("RunTimeLeft", Config.BossWindow)
 		feedbackAll("BOSS_SPAWN", {Circle = currentCircle})
 		createDemon("Butcher", currentCircle, Config.Navigation.BossPosition)
 		notifyAll("DEBUG • THE BUTCHER spawned immediately.")
@@ -2102,6 +2215,10 @@ task.spawn(function()
 			for userId in pairs(decisionEligible) do
 				if votes[userId] ~= "ESCAPE" and votes[userId] ~= "DESCEND" then
 					votes[userId] = "ESCAPE"
+					local votePlayer = Players:GetPlayerByUserId(userId)
+					if votePlayer then
+						votePlayer:SetAttribute("DecisionVote", "ESCAPE")
+					end
 					changed = true
 				end
 			end
@@ -2219,7 +2336,7 @@ local function runCircle()
 	for remaining = Config.RunDuration, 0, -1 do
 		Workspace:SetAttribute("RunTimeLeft", remaining)
 
-		if remaining == Config.BossWindow then
+		if remaining == Config.BossWindow and not findBoss() and not circleBossDefeated then
 			Workspace:SetAttribute("RunState", "BOSS")
 			Workspace:SetAttribute("BossAlive", true)
 			notifyAll("THE BUTCHER ENTERS THE SLAUGHTER PIT.")

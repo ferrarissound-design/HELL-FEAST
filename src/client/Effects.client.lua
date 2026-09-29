@@ -110,6 +110,7 @@ bossFillCorner.Parent = bossFill
 
 
 local fullPulse
+local phaseBannerVersion = 0
 
 local phaseBanner = Instance.new("TextLabel")
 phaseBanner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -125,6 +126,9 @@ phaseBanner.TextWrapped = true
 phaseBanner.Parent = gui
 
 local function showBossPhase(phase)
+	phaseBannerVersion += 1
+	local version = phaseBannerVersion
+
 	if phase == 2 then
 		phaseBanner.Text = "THE BUTCHER\nPHASE II"
 		phaseBanner.TextColor3 = Color3.fromRGB(255, 165, 105)
@@ -147,14 +151,18 @@ local function showBossPhase(phase)
 	fullPulse(phase == 3 and Color3.fromRGB(150, 20, 25) or Color3.fromRGB(130, 50, 25))
 
 	task.delay(1.55, function()
+		if version ~= phaseBannerVersion then
+			return
+		end
 		TweenService:Create(phaseBanner, TweenInfo.new(0.42), {
 			TextTransparency = 1,
 		}):Play()
 	end)
 end
 
-local function flashDamage(strength)
+local function flashDamage(strength, color)
 	strength = strength or 0.28
+	damageFlash.BackgroundColor3 = color or Color3.fromRGB(170, 15, 25)
 	if player:GetAttribute("ReducedFlashes") == true then
 		strength *= 0.35
 	end
@@ -299,14 +307,21 @@ local function createLineTelegraph(payload)
 	Debris:AddItem(strip, duration + 0.08)
 end
 
+local healthChangedConnection
+
 local function bindHumanoid(character)
+	if healthChangedConnection then
+		healthChangedConnection:Disconnect()
+		healthChangedConnection = nil
+	end
+
 	local humanoid = character:WaitForChild("Humanoid", 8)
 	if not humanoid then
 		return
 	end
 
 	local lastHealth = humanoid.Health
-	humanoid.HealthChanged:Connect(function(newHealth)
+	healthChangedConnection = humanoid.HealthChanged:Connect(function(newHealth)
 		if newHealth < lastHealth then
 			local lost = lastHealth - newHealth
 			flashDamage(math.clamp(0.20 + lost / math.max(1, humanoid.MaxHealth), 0.20, 0.48))
@@ -350,11 +365,7 @@ feedback.OnClientEvent:Connect(function(kind, payload)
 	elseif kind == "HOUND_CHARGE" then
 		flashDamage(0.44)
 	elseif kind == "ENVIRONMENT_HIT" then
-		damageFlash.BackgroundColor3 = Color3.fromRGB(235, 85, 25)
-		flashDamage(0.34)
-		task.delay(0.25, function()
-			damageFlash.BackgroundColor3 = Color3.fromRGB(170, 15, 25)
-		end)
+		flashDamage(0.34, Color3.fromRGB(235, 85, 25))
 	elseif kind == "ENEMY_HIT" then
 		flashDamage(0.26)
 	elseif kind == "BOSS_PHASE" then
